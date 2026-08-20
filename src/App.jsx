@@ -395,16 +395,6 @@ export default function App() {
               );
             })}
           </nav>
-          <div className="mt-auto pt-6 px-1">
-            <div style={{ borderTop: `1px solid ${COLORS.line}` }} className="pt-4 text-[11px]" >
-              <div style={{ color: COLORS.chalkDim }} className="flex items-center gap-1.5">
-                <Info size={12} /> Prototype build
-              </div>
-              <div style={{ color: COLORS.chalkDim }} className="mt-1 leading-relaxed">
-                Fixtures and availability are saved in this browser.
-              </div>
-            </div>
-          </div>
         </aside>
 
         {/* Main */}
