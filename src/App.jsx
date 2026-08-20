@@ -236,9 +236,6 @@ function downloadSquadPng(fixture, players) {
   context.fillText(`${formatFixtureDate(fixture.date)}  |  ${fixture.venue}  |  ${fixture.competition}`, 400, 180);
 
   context.textAlign = "left";
-  context.fillStyle = gold;
-  context.font = "bold 14px Arial, sans-serif";
-  context.fillText(`${sortedPlayers.length} AVAILABLE PLAYERS`, 76, 226);
 
   columns.forEach((column, columnIndex) => {
     const x = columnIndex === 0 ? 88 : 440;
