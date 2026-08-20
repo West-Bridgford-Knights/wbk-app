@@ -49,6 +49,7 @@ const FORMATION = [
 ];
 
 const TOTAL_TEAMS = 12;
+const ACTIVE_PLAYER_STORAGE_KEY = "wbk-active-player-id";
 
 function formatFixtureDate(value) {
   if (value === "TBC") return value;
@@ -315,7 +316,9 @@ export default function App() {
   const [dataError, setDataError] = useState("");
   const [tab, setTab] = useState("dashboard");
   const [role, setRole] = useState("player"); // manager | player
-  const [activePlayerId, setActivePlayerId] = useState("p1");
+  const [activePlayerId, setActivePlayerId] = useState(
+    () => localStorage.getItem(ACTIVE_PLAYER_STORAGE_KEY) || null
+  );
   const [managerUnlockClicks, setManagerUnlockClicks] = useState(0);
   const [newPlayerName, setNewPlayerName] = useState("");
   const [fixtureForm, setFixtureForm] = useState({ opponent: "", date: "", venue: "H", competition: "One" });
@@ -350,6 +353,12 @@ export default function App() {
       .then(setLeagueTable)
       .catch(reportSaveError)
       .finally(() => setLeagueTableLoading(false));
+  }
+
+  function selectActivePlayer(playerId) {
+    setActivePlayerId(playerId);
+    if (playerId) localStorage.setItem(ACTIVE_PLAYER_STORAGE_KEY, playerId);
+    else localStorage.removeItem(ACTIVE_PLAYER_STORAGE_KEY);
   }
 
   function handlePlayerAccountClick() {
@@ -408,6 +417,42 @@ export default function App() {
               ? "Loading players, fixtures and availability from Supabase..."
               : "Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to a local .env file, then run the SQL in supabase/schema.sql in your Supabase SQL Editor.")}
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  const activePlayerValid = players.some(p => p.id === activePlayerId);
+
+  if (role === "player" && !activePlayerValid) {
+    return (
+      <div style={{ background: COLORS.bg, minHeight: "100vh", color: COLORS.chalk }} className="p-6 md:p-12 flex items-center justify-center">
+        <div style={{ maxWidth: 480, width: "100%", background: COLORS.panel, border: `1px solid ${COLORS.line}` }} className="rounded-xl p-6">
+          <div className="flex items-center gap-2.5 mb-5">
+            <CrestBadge size={34} />
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", color: COLORS.gold }} className="text-lg tracking-wide leading-none">
+              WEST BRIDGFORD KNIGHTS
+            </div>
+          </div>
+          <SectionHeading eyebrow="Welcome" title="Who's this?" />
+          <p style={{ color: COLORS.chalkDim }} className="text-sm leading-relaxed mb-4">
+            Pick your name to see your fixtures, availability and stats. We'll remember your choice on this device.
+          </p>
+          <div className="flex flex-col gap-1.5 max-h-[360px] overflow-y-auto pr-1">
+            {players.map(p => (
+              <button
+                key={p.id}
+                onClick={() => selectActivePlayer(p.id)}
+                style={{ background: COLORS.panel2, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
+                className="text-sm text-left px-3 py-2.5 rounded-md flex items-center gap-2.5 hover:opacity-90"
+              >
+                <ShirtBadge number={p.number} size={26} /> {p.name}
+              </button>
+            ))}
+            {players.length === 0 && (
+              <div style={{ color: COLORS.chalkDim }} className="text-sm">No players registered yet.</div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -578,14 +623,24 @@ export default function App() {
                 <LogIn size={14} /> Player account
               </button>
               {role === "player" && (
-                <select
-                  value={activePlayerId}
-                  onChange={e => setActivePlayerId(e.target.value)}
-                  style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
-                  className="text-xs rounded-md px-2 py-1.5"
-                >
-                  {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
+                <>
+                  <select
+                    value={activePlayerId || ""}
+                    onChange={e => selectActivePlayer(e.target.value)}
+                    style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
+                    className="text-xs rounded-md px-2 py-1.5"
+                  >
+                    {players.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => selectActivePlayer(null)}
+                    style={{ color: COLORS.chalkDim }}
+                    className="text-xs"
+                  >
+                    Switch player
+                  </button>
+                </>
               )}
             </div>
           </div>
