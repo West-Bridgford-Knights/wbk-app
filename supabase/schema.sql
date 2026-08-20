@@ -41,11 +41,24 @@ create table if not exists public.results (
   stats jsonb not null default '{}'::jsonb
 );
 
+create table if not exists public.league_table (
+  team text primary key,
+  pos integer not null,
+  played integer not null default 0,
+  won integer not null default 0,
+  drawn integer not null default 0,
+  lost integer not null default 0,
+  goal_diff integer,
+  points integer not null default 0,
+  scraped_at timestamptz not null default now()
+);
+
 alter table public.players enable row level security;
 alter table public.fixtures enable row level security;
 alter table public.availability enable row level security;
 alter table public.lineups enable row level security;
 alter table public.results enable row level security;
+alter table public.league_table enable row level security;
 
 drop policy if exists "Public team app can read players" on public.players;
 drop policy if exists "Public team app can write players" on public.players;
@@ -57,6 +70,8 @@ drop policy if exists "Public team app can read lineups" on public.lineups;
 drop policy if exists "Public team app can write lineups" on public.lineups;
 drop policy if exists "Public team app can read results" on public.results;
 drop policy if exists "Public team app can write results" on public.results;
+drop policy if exists "Public team app can read league_table" on public.league_table;
+drop policy if exists "Public team app can write league_table" on public.league_table;
 
 create policy "Public team app can read players" on public.players for select to anon, authenticated using (true);
 create policy "Public team app can write players" on public.players for all to anon, authenticated using (true) with check (true);
@@ -68,3 +83,5 @@ create policy "Public team app can read lineups" on public.lineups for select to
 create policy "Public team app can write lineups" on public.lineups for all to anon, authenticated using (true) with check (true);
 create policy "Public team app can read results" on public.results for select to anon, authenticated using (true);
 create policy "Public team app can write results" on public.results for all to anon, authenticated using (true) with check (true);
+create policy "Public team app can read league_table" on public.league_table for select to anon, authenticated using (true);
+create policy "Public team app can write league_table" on public.league_table for all to anon, authenticated using (true) with check (true);

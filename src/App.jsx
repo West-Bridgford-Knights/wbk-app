@@ -11,6 +11,7 @@ import {
 import { isSupabaseConfigured } from "./lib/supabase";
 import {
   loadAppData,
+  loadLeagueTable,
   saveAvailability,
   saveFixture,
   saveLineup,
@@ -335,6 +336,8 @@ export default function App() {
   const [fixtureForm, setFixtureForm] = useState({ opponent: "", date: "", venue: "H", competition: "One" });
   const [resultFixtureId, setResultFixtureId] = useState(null);
   const [lineupFixtureId, setLineupFixtureId] = useState(fixtures.find(f => f.status === "upcoming")?.id || null);
+  const [leagueTable, setLeagueTable] = useState([]);
+  const [leagueTableLoading, setLeagueTableLoading] = useState(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -345,6 +348,7 @@ export default function App() {
         setAvailability(data.availability);
         setLineups(data.lineups);
         setResults(data.results);
+        setLeagueTable(data.leagueTable);
         setLineupFixtureId(data.fixtures.find(f => f.status === "upcoming")?.id || null);
         setDataReady(true);
       })
@@ -353,6 +357,14 @@ export default function App() {
 
   function reportSaveError(error) {
     setDataError(error.message || "Unable to save changes to Supabase.");
+  }
+
+  function refreshLeagueTable() {
+    setLeagueTableLoading(true);
+    loadLeagueTable()
+      .then(setLeagueTable)
+      .catch(reportSaveError)
+      .finally(() => setLeagueTableLoading(false));
   }
 
   function handlePlayerAccountClick() {
@@ -493,6 +505,7 @@ export default function App() {
     { key: "availability", label: "Availability", icon: ClipboardCheck },
     { key: "lineups", label: "Matchday Squads", icon: Shirt },
     { key: "results", label: "Results & Ratings", icon: Target },
+    { key: "league", label: "League Table", icon: Trophy },
     { key: "analysis", label: "Analysis", icon: BarChart3 },
   ];
 
@@ -653,6 +666,10 @@ export default function App() {
                 resultFixtureId={resultFixtureId} setResultFixtureId={setResultFixtureId}
                 saveResult={saveResult} role={role}
               />
+            )}
+
+            {tab === "league" && (
+              <LeagueTableTab sortedTable={leagueTable} refreshScrape={refreshLeagueTable} scraping={leagueTableLoading} />
             )}
 
             {tab === "analysis" && (
@@ -1078,43 +1095,51 @@ function ResultsTab({ fixtures, results, players, resultFixtureId, setResultFixt
 
 // ---------- League Table ----------
 function LeagueTableTab({ sortedTable, refreshScrape, scraping }) {
+  const lastScraped = sortedTable.find(t => t.scraped_at)?.scraped_at;
   return (
     <div>
       <SectionHeading
-        eyebrow="Auto-generated from scraped results"
+        eyebrow="Scraped daily from the league site"
         title="League Table"
         right={
           <button onClick={refreshScrape} disabled={scraping} style={{ background: COLORS.panel2, color: COLORS.gold, border: `1px solid ${COLORS.gold}55` }} className="text-sm px-3 py-2 rounded-md flex items-center gap-2">
-            <RefreshCw size={14} className={scraping ? "animate-spin" : ""} /> {scraping ? "Scraping…" : "Refresh from league site"}
+            <RefreshCw size={14} className={scraping ? "animate-spin" : ""} /> {scraping ? "Refreshing…" : "Reload latest"}
           </button>
         }
       />
-      <Panel style={{ padding: 0 }}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ color: COLORS.chalkDim, borderBottom: `1px solid ${COLORS.line}` }} className="text-xs uppercase text-left">
-                <th className="py-2 px-3">#</th><th className="px-2">Team</th><th className="px-2">P</th><th className="px-2">W</th><th className="px-2">D</th><th className="px-2">L</th><th className="px-2">GD</th><th className="px-2">Pts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedTable.map((t, i) => {
-                const isUs = t.team.startsWith("West Bridgford");
-                return (
-                  <tr key={t.team} style={{ borderBottom: `1px solid ${COLORS.line}`, background: isUs ? COLORS.panel2 : "transparent" }}>
-                    <td className="py-2 px-3" style={{ color: COLORS.chalkDim }}>{i+1}</td>
-                    <td className="px-2 font-medium" style={{ color: isUs ? COLORS.gold : COLORS.chalk }}>{t.team}</td>
-                    <td className="px-2">{t.p}</td><td className="px-2">{t.w}</td><td className="px-2">{t.d}</td><td className="px-2">{t.l}</td>
-                    <td className="px-2">{t.gf - t.ga > 0 ? "+" : ""}{t.gf - t.ga}</td>
-                    <td className="px-2 font-semibold">{t.w*3+t.d}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
-      <div style={{ color: COLORS.chalkDim }} className="text-xs mt-3 flex items-center gap-1.5"><Info size={12}/> In production this table refreshes from a scheduled scraper hitting the league website, stored in Supabase.</div>
+      {sortedTable.length === 0 ? (
+        <Panel><p style={{ color: COLORS.chalkDim }} className="text-sm">No league table data yet — it fills in after the next daily scrape.</p></Panel>
+      ) : (
+        <Panel style={{ padding: 0 }}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ color: COLORS.chalkDim, borderBottom: `1px solid ${COLORS.line}` }} className="text-xs uppercase text-left">
+                  <th className="py-2 px-3">#</th><th className="px-2">Team</th><th className="px-2">P</th><th className="px-2">W</th><th className="px-2">D</th><th className="px-2">L</th><th className="px-2">GD</th><th className="px-2">Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedTable.map(t => {
+                  const isUs = t.team.startsWith("West Bridgford");
+                  return (
+                    <tr key={t.team} style={{ borderBottom: `1px solid ${COLORS.line}`, background: isUs ? COLORS.panel2 : "transparent" }}>
+                      <td className="py-2 px-3" style={{ color: COLORS.chalkDim }}>{t.pos}</td>
+                      <td className="px-2 font-medium" style={{ color: isUs ? COLORS.gold : COLORS.chalk }}>{t.team}</td>
+                      <td className="px-2">{t.played}</td><td className="px-2">{t.won}</td><td className="px-2">{t.drawn}</td><td className="px-2">{t.lost}</td>
+                      <td className="px-2">{t.goal_diff > 0 ? "+" : ""}{t.goal_diff}</td>
+                      <td className="px-2 font-semibold">{t.points}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
+      <div style={{ color: COLORS.chalkDim }} className="text-xs mt-3 flex items-center gap-1.5">
+        <Info size={12}/> Refreshed daily by a scheduled scraper hitting the league website, stored in Supabase.
+        {lastScraped && ` Last scraped ${new Date(lastScraped).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}.`}
+      </div>
     </div>
   );
 }
