@@ -434,6 +434,32 @@ export default function App() {
             </div>
           </div>
 
+          <nav
+            aria-label="Mobile navigation"
+            style={{ background: COLORS.panel, borderBottom: `1px solid ${COLORS.line}` }}
+            className="md:hidden flex gap-1 overflow-x-auto px-3 py-2"
+          >
+            {navItems.filter(item => item.key !== "lineups" || role === "manager").map(item => {
+              const Icon = item.icon;
+              const active = tab === item.key;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => setTab(item.key)}
+                  style={{
+                    background: active ? COLORS.panel2 : "transparent",
+                    color: active ? COLORS.gold : COLORS.chalkDim,
+                    border: `1px solid ${active ? COLORS.gold : "transparent"}`,
+                  }}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium whitespace-nowrap"
+                >
+                  <Icon size={14} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+
           <div className="p-4 md:p-8 max-w-6xl">
             {tab === "dashboard" && (
               <Dashboard
