@@ -293,7 +293,7 @@ async function downloadSquadPng(fixture, players, captainId) {
     logo.onload = resolve;
     logo.onerror = resolve;
   });
-  if (logo.complete && logo.naturalWidth) context.drawImage(logo, 410, 930, 318, 159);
+  if (logo.complete && logo.naturalWidth) context.drawImage(logo, 390, 900, 338, 169);
 
   context.fillStyle = gold;
   context.fillRect(72, 1072, 656, 2);

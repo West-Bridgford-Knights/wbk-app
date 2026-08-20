@@ -16,9 +16,6 @@
     </style>
   </defs>
 
-  <!-- background -->
-  <rect x="0" y="0" width="2000" height="1000" fill="#191E38"/>
-
   <!-- shield: traced from source proportions (short sharp top point, longer tapered bottom point) -->
   <g transform="translate(340,500)">
     <polygon points="0,-287.86 260,-157.86 260,46.43 0,287.86 -260,46.43 -260,-157.86"
