@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "scrape:league": "node --env-file=.env scripts/scrape-league-table.mjs"
+    "scrape:league": "node --env-file=.env scripts/scrape-league-table.mjs",
+    "scrape:fixtures": "node --env-file=.env scripts/scrape-fixtures.mjs",
+    "generate:ics": "node --env-file=.env scripts/generate-fixtures-ics.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
