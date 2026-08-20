@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Users, CalendarDays, ClipboardCheck, Shirt, Trophy, TrendingUp,
-  BarChart3, Star, Plus, X, RefreshCw, ChevronRight, Target, Zap,
+  BarChart3, Star, Plus, X, RefreshCw, ChevronRight, Target, Zap, Download,
   LogIn, ShieldCheck, Info
 } from "lucide-react";
 import {
@@ -175,6 +175,96 @@ function Panel({ children, style, className = "" }) {
   );
 }
 
+function downloadSquadPng(fixture, players) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 800;
+  canvas.height = 800;
+  const context = canvas.getContext("2d");
+  const navy = "#151A3A";
+  const gold = "#B6A06A";
+  const chalk = "#F5F3EE";
+  const muted = "#C6C9D8";
+  const sortedPlayers = [...players].sort((a, b) => a.number - b.number);
+  const columns = [sortedPlayers.slice(0, Math.ceil(sortedPlayers.length / 2)), sortedPlayers.slice(Math.ceil(sortedPlayers.length / 2))];
+
+  context.fillStyle = navy;
+  context.fillRect(0, 0, 800, 800);
+
+  const sky = context.createLinearGradient(0, 0, 0, 800);
+  sky.addColorStop(0, "#20264D");
+  sky.addColorStop(0.6, "#171C3D");
+  sky.addColorStop(1, "#0E1230");
+  context.fillStyle = sky;
+  context.fillRect(40, 0, 680, 800);
+
+  context.save();
+  context.globalAlpha = 0.18;
+  context.strokeStyle = "#D8DBE8";
+  context.lineWidth = 2;
+  for (let x = 75; x < 740; x += 34) {
+    context.beginPath();
+    context.moveTo(x, 155);
+    context.lineTo(400, 690);
+    context.stroke();
+  }
+  for (let y = 180; y < 650; y += 42) {
+    context.beginPath();
+    context.moveTo(60, y);
+    context.quadraticCurveTo(400, y - 35, 740, y);
+    context.stroke();
+  }
+  context.restore();
+
+  context.fillStyle = gold;
+  context.fillRect(0, 0, 40, 800);
+  context.fillRect(720, 0, 80, 800);
+  for (let y = 0; y < 800; y += 130) {
+    context.fillStyle = navy;
+    context.fillRect(0, y + 70, 40, 42);
+    context.fillRect(720, y + 18, 80, 42);
+  }
+
+  context.textAlign = "center";
+  context.fillStyle = chalk;
+  context.font = "bold 58px Impact, sans-serif";
+  context.fillText("MATCH DAY SQUAD", 400, 118);
+
+  context.fillStyle = muted;
+  context.font = "bold 18px Arial, sans-serif";
+  context.fillText(`${fixture.homeTeam}  VS  ${fixture.awayTeam}`, 400, 155);
+  context.font = "bold 15px Arial, sans-serif";
+  context.fillText(`${formatFixtureDate(fixture.date)}  |  ${fixture.venue}  |  ${fixture.competition}`, 400, 180);
+
+  context.textAlign = "left";
+  context.fillStyle = gold;
+  context.font = "bold 14px Arial, sans-serif";
+  context.fillText(`${sortedPlayers.length} AVAILABLE PLAYERS`, 76, 226);
+
+  columns.forEach((column, columnIndex) => {
+    const x = columnIndex === 0 ? 88 : 440;
+    column.forEach((player, index) => {
+      const y = 270 + index * 43;
+      context.fillStyle = chalk;
+      context.font = "bold 20px Arial, sans-serif";
+      context.fillText(`${player.number}.`, x, y);
+      context.font = "bold 20px Arial, sans-serif";
+      context.fillText(player.name.toUpperCase(), x + 48, y);
+    });
+  });
+
+  context.textAlign = "center";
+  context.fillStyle = muted;
+  context.font = "14px Arial, sans-serif";
+  context.fillText("WEST BRIDGFORD KNIGHTS F.C.", 400, 750);
+  context.fillStyle = gold;
+  context.fillRect(260, 764, 280, 2);
+
+  const link = document.createElement("a");
+  link.download = `match-day-squad-${fixture.id}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
+
 // ---------- Main App ----------
 export default function App() {
   const [players, setPlayers] = useState([]);
@@ -341,7 +431,7 @@ export default function App() {
     { key: "squad", label: "Squad", icon: Users },
     { key: "fixtures", label: "Fixtures", icon: CalendarDays },
     { key: "availability", label: "Availability", icon: ClipboardCheck },
-    { key: "lineups", label: "Squads", icon: Shirt },
+    { key: "lineups", label: "Matchday Squads", icon: Shirt },
     { key: "results", label: "Results & Ratings", icon: Target },
     { key: "analysis", label: "Analysis", icon: BarChart3 },
   ];
@@ -470,8 +560,8 @@ export default function App() {
 
             {tab === "squad" && (
               <SquadTab
-                players={players} analysis={analysis} newPlayerName={newPlayerName}
-                setNewPlayerName={setNewPlayerName} addPlayer={addPlayer} role={role}
+                players={players} analysis={analysis}
+                newPlayerName={newPlayerName} setNewPlayerName={setNewPlayerName} addPlayer={addPlayer} role={role}
               />
             )}
 
@@ -566,7 +656,7 @@ function Dashboard({ upcoming, played, results, topScorers, setTab, role }) {
           <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-3">Quick Actions</div>
           <div className="flex flex-col gap-2">
             <button onClick={() => setTab("availability")} style={{ background: COLORS.panel2, color: COLORS.chalk }} className="text-sm text-left px-3 py-2 rounded-md flex items-center justify-between hover:opacity-90">Set availability <ChevronRight size={14}/></button>
-            {role === "manager" && <button onClick={() => setTab("lineups")} style={{ background: COLORS.panel2, color: COLORS.chalk }} className="text-sm text-left px-3 py-2 rounded-md flex items-center justify-between hover:opacity-90">Pick a squad <ChevronRight size={14}/></button>}
+            {role === "manager" && <button onClick={() => setTab("lineups")} style={{ background: COLORS.panel2, color: COLORS.chalk }} className="text-sm text-left px-3 py-2 rounded-md flex items-center justify-between hover:opacity-90">Matchday squads <ChevronRight size={14}/></button>}
             <button onClick={() => setTab("results")} style={{ background: COLORS.panel2, color: COLORS.chalk }} className="text-sm text-left px-3 py-2 rounded-md flex items-center justify-between hover:opacity-90">Log a result <ChevronRight size={14}/></button>
           </div>
         </Panel>
@@ -723,8 +813,8 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
   const availableIds = fixture ? players.filter(p => availability[fixture.id]?.[p.id] === "yes").map(p=>p.id) : [];
   const usedIds = new Set([...Object.values(current.starters), ...current.subs]);
 
-  if (role !== "manager") return <div><SectionHeading eyebrow="Manager access" title="Squads" /><Panel><div style={{ color: COLORS.chalkDim }}>Squad selection is available to managers only.</div></Panel></div>;
-  if (!fixture) return <div><SectionHeading eyebrow="Team selection" title="Squads" /><Panel><div style={{ color: COLORS.chalkDim }}>No upcoming fixture to set a squad for.</div></Panel></div>;
+  if (role !== "manager") return <div><SectionHeading eyebrow="Manager access" title="Matchday Squads" /><Panel><div style={{ color: COLORS.chalkDim }}>Squad selection is available to managers only.</div></Panel></div>;
+  if (!fixture) return <div><SectionHeading eyebrow="Team selection" title="Matchday Squads" /><Panel><div style={{ color: COLORS.chalkDim }}>No upcoming fixture to set a squad for.</div></Panel></div>;
 
   function handlePlayerClick(playerId) {
     const targetSlot = selectedSlot || FORMATION.find(slot => !current.starters[slot.key])?.key;
@@ -737,13 +827,24 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
     <div>
       <SectionHeading
         eyebrow="Team selection"
-        title="Squads"
+        title="Matchday Squads"
         right={
-          <select value={fixture.id} onChange={e => setLineupFixtureId(e.target.value)}
-            style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
-            className="text-sm px-3 py-2 rounded-md">
-            {fixtures.map(f => <option key={f.id} value={f.id}>{f.opponent} · {f.date}</option>)}
-          </select>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select value={fixture.id} onChange={e => setLineupFixtureId(e.target.value)}
+              style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
+              className="text-sm px-3 py-2 rounded-md">
+              {fixtures.map(f => <option key={f.id} value={f.id}>{f.opponent} · {f.date}</option>)}
+            </select>
+            <button
+              type="button"
+              disabled={availableIds.length === 0}
+              onClick={() => downloadSquadPng(fixture, players.filter(p => availableIds.includes(p.id)))}
+              style={{ background: COLORS.gold, color: COLORS.bg, opacity: availableIds.length ? 1 : 0.5 }}
+              className="text-xs font-semibold px-3 py-2 rounded-md flex items-center gap-1.5"
+            >
+              <Download size={14} /> Create squad PNG
+            </button>
+          </div>
         }
       />
       <Panel className="mb-4">
