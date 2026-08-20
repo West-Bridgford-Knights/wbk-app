@@ -1,0 +1,35 @@
+<svg width="2000" height="1000" viewBox="0 0 2000 1000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .gold { fill: #C6A24D; }
+      .muted { fill: #A6ABC9; }
+      .headline {
+        font-family: 'Liberation Sans', Arial, Helvetica, sans-serif;
+        font-weight: 700;
+        letter-spacing: 4px;
+      }
+      .est {
+        font-family: 'Liberation Sans', Arial, Helvetica, sans-serif;
+        font-weight: 400;
+        letter-spacing: 10px;
+      }
+    </style>
+  </defs>
+
+  <!-- background -->
+  <rect x="0" y="0" width="2000" height="1000" fill="#191E38"/>
+
+  <!-- shield: traced from source proportions (short sharp top point, longer tapered bottom point) -->
+  <g transform="translate(340,500)">
+    <polygon points="0,-287.86 260,-157.86 260,46.43 0,287.86 -260,46.43 -260,-157.86"
+             fill="none" stroke="#C6A24D" stroke-width="28"/>
+    <text x="0" y="38" text-anchor="middle" class="headline gold" font-size="268" letter-spacing="0">W</text>
+  </g>
+
+  <!-- text block -->
+  <g transform="translate(660,0)">
+    <text x="0" y="430" class="headline gold" font-size="108">WEST BRIDGFORD</text>
+    <text x="0" y="560" class="headline gold" font-size="108">KNIGHTS</text>
+    <text x="0" y="660" class="est muted" font-size="50">EST. 2019</text>
+  </g>
+</svg>

@@ -18,6 +18,7 @@ import {
   savePlayer,
   saveResult as saveResultToDatabase,
 } from "./lib/database";
+import clubLogoUrl from "../west-bridgford-knights-logo.svg";
 
 // ---------- Design tokens ----------
 const COLORS = {
@@ -176,7 +177,7 @@ function Panel({ children, style, className = "" }) {
   );
 }
 
-function downloadSquadPng(fixture, players, captainId) {
+async function downloadSquadPng(fixture, players, captainId) {
   const canvas = document.createElement("canvas");
   canvas.width = 800;
   canvas.height = 1100;
@@ -229,89 +230,73 @@ function downloadSquadPng(fixture, players, captainId) {
     context.fillRect(766, y + 62, 34, 52);
   }
 
-  context.textAlign = "left";
+  context.textAlign = "center";
   context.fillStyle = gold;
   context.font = "bold 29px Arial, sans-serif";
-  context.fillText(fixture.opponent.toUpperCase(), 72, 48);
-  context.fillStyle = muted;
-  context.font = "bold 22px Arial, sans-serif";
-  context.fillText(`${formatFixtureDate(fixture.date)}  |  ${fixture.venue}`, 72, 76);
+  context.fillText("WEST BRIDGFORD KNIGHTS F.C.", 400, 48);
   context.fillStyle = chalk;
-  context.font = "bold 112px Impact, sans-serif";
-  context.fillText("SQUAD", 70, 198);
-
-  context.textAlign = "right";
+  context.font = "bold 28px Arial, sans-serif";
+  context.fillText("VS", 400, 88);
+  context.fillStyle = chalk;
+  context.font = "bold 29px Arial, sans-serif";
+  context.fillText(fixture.opponent.toUpperCase(), 400, 128);
   context.fillStyle = muted;
-  const matchup = `${fixture.homeTeam}  VS  ${fixture.awayTeam}`;
-  let matchupSize = 22;
-  context.font = `bold ${matchupSize}px Arial, sans-serif`;
-  while (context.measureText(matchup).width > 310 && matchupSize > 13) {
-    matchupSize -= 1;
-    context.font = `bold ${matchupSize}px Arial, sans-serif`;
-  }
-  context.fillText(matchup, 722, 48);
+  context.font = "bold 21px Arial, sans-serif";
+  context.fillText(`${formatFixtureDate(fixture.date)}  |  ${fixture.venue}`, 400, 164);
   const competition = fixture.competition === "One" ? "" : fixture.competition;
   if (competition) {
-    context.font = "bold 20px Arial, sans-serif";
-    context.fillText(competition, 722, 78);
+    context.font = "bold 18px Arial, sans-serif";
+    context.fillText(competition, 400, 192);
   }
 
+  context.fillStyle = chalk;
+  context.font = "bold 112px Impact, sans-serif";
+  context.fillText("SQUAD", 400, competition ? 290 : 270);
+
   context.textAlign = "left";
-  sortedPlayers.forEach((player, index) => {
-    const y = 282 + index * Math.min(40, 610 / Math.max(sortedPlayers.length, 1));
-    context.fillStyle = gold;
-    context.font = "bold 25px Arial, sans-serif";
-    context.fillText(`${player.number}.`, 84, y);
-    context.fillStyle = chalk;
-    context.font = "bold 25px Arial, sans-serif";
-    context.fillText(player.name.toUpperCase(), 142, y);
-    if (player.id === captainId) {
+  const columns = [sortedPlayers.slice(0, Math.ceil(sortedPlayers.length / 2)), sortedPlayers.slice(Math.ceil(sortedPlayers.length / 2))];
+  const listTop = competition ? 340 : 320;
+  const rowHeight = Math.min(38, 500 / Math.max(columns[0].length, 1));
+  columns.forEach((column, columnIndex) => {
+    const x = columnIndex === 0 ? 70 : 420;
+    column.forEach((player, index) => {
+      const y = listTop + index * rowHeight;
       context.fillStyle = gold;
-      context.font = "bold 15px Arial, sans-serif";
-      context.fillText("C", 150 + context.measureText(player.name.toUpperCase()).width, y);
-    }
+      context.font = "bold 22px Arial, sans-serif";
+      context.fillText(`${player.number}.`, x, y);
+      context.fillStyle = chalk;
+      context.font = "bold 22px Arial, sans-serif";
+      context.fillText(player.name.toUpperCase(), x + 52, y);
+      if (player.id === captainId) {
+        context.fillStyle = gold;
+        context.font = "bold 14px Arial, sans-serif";
+        context.fillText("C", x + 52 + context.measureText(player.name.toUpperCase()).width + 8, y);
+      }
+    });
   });
 
   context.fillStyle = gold;
-  context.fillRect(72, 930, 650, 2);
+  context.fillRect(72, 850, 656, 2);
   context.fillStyle = gold;
   context.font = "bold 18px Arial, sans-serif";
-  context.fillText("MANAGER", 72, 972);
+  context.fillText("MANAGER", 72, 886);
   context.fillStyle = chalk;
   context.font = "bold 27px Arial, sans-serif";
-  context.fillText("LUKE MAXTED", 72, 1012);
+  context.fillText("LUKE MAXTED", 72, 920);
   context.fillStyle = muted;
   context.font = "15px Arial, sans-serif";
-  context.fillText(captain ? `CAPTAIN  ${captain.name.toUpperCase()}` : "CAPTAIN  NOT SELECTED", 72, 1050);
+  context.fillText(captain ? `CAPTAIN  ${captain.name.toUpperCase()}` : "CAPTAIN  NOT SELECTED", 72, 948);
 
-  // Recreate the supplied horizontal club logo lockup at the bottom.
-  context.save();
-  context.translate(530, 1000);
-  context.fillStyle = gold;
-  context.beginPath();
-  context.moveTo(0, -60); context.lineTo(50, -38); context.lineTo(43, 26); context.lineTo(0, 60); context.lineTo(-43, 26); context.lineTo(-50, -38); context.closePath(); context.fill();
-  context.fillStyle = navy;
-  context.beginPath();
-  context.moveTo(0, -51); context.lineTo(42, -33); context.lineTo(36, 22); context.lineTo(0, 51); context.lineTo(-36, 22); context.lineTo(-42, -33); context.closePath(); context.fill();
-  context.fillStyle = gold;
-  context.textAlign = "center";
-  context.font = "bold 28px Arial, sans-serif";
-  context.fillText("W", 0, 12);
-  context.font = "bold 8px Arial, sans-serif";
-  context.fillText("KNIGHTS", 0, 45);
-  context.restore();
-
-  context.textAlign = "left";
-  context.fillStyle = gold;
-  context.font = "bold 25px Arial, sans-serif";
-  context.fillText("WEST BRIDGFORD", 590, 985);
-  context.fillText("KNIGHTS", 590, 1016);
-  context.fillStyle = muted;
-  context.font = "bold 17px Arial, sans-serif";
-  context.fillText("EST. 2019", 590, 1045);
+  const logo = new Image();
+  logo.src = clubLogoUrl;
+  await new Promise(resolve => {
+    logo.onload = resolve;
+    logo.onerror = resolve;
+  });
+  if (logo.complete && logo.naturalWidth) context.drawImage(logo, 410, 930, 318, 159);
 
   context.fillStyle = gold;
-  context.fillRect(72, 1072, 650, 2);
+  context.fillRect(72, 1072, 656, 2);
 
   const link = document.createElement("a");
   link.download = `match-day-squad-${fixture.id}.png`;
