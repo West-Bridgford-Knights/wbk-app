@@ -239,21 +239,24 @@ function downloadSquadPng(fixture, players, captainId) {
   context.textAlign = "left";
   context.fillStyle = gold;
   context.font = "bold 22px Arial, sans-serif";
-  context.fillText(`${fixture.opponent.toUpperCase()}  |  ${formatFixtureDate(fixture.date)}`, 72, 62);
+  context.fillText(fixture.opponent.toUpperCase(), 72, 48);
+  context.fillStyle = muted;
+  context.font = "bold 16px Arial, sans-serif";
+  context.fillText(`${formatFixtureDate(fixture.date)}  |  ${fixture.venue}`, 72, 76);
   context.fillStyle = chalk;
   context.font = "bold 112px Impact, sans-serif";
-  context.fillText("SQUAD", 70, 178);
+  context.fillText("SQUAD", 70, 198);
 
   context.textAlign = "right";
   context.fillStyle = muted;
-  context.font = "bold 18px Arial, sans-serif";
-  context.fillText(`${fixture.homeTeam}  VS  ${fixture.awayTeam}`, 722, 94);
-  context.font = "bold 16px Arial, sans-serif";
-  context.fillText(`${fixture.venue}  |  ${fixture.competition === "One" ? "" : fixture.competition}`, 722, 124);
+  context.font = "bold 17px Arial, sans-serif";
+  context.fillText(`${fixture.homeTeam}  VS  ${fixture.awayTeam}`, 722, 48);
+  const competition = fixture.competition === "One" ? "" : fixture.competition;
+  if (competition) context.fillText(competition, 722, 76);
 
   context.textAlign = "left";
   sortedPlayers.forEach((player, index) => {
-    const y = 252 + index * Math.min(42, 740 / Math.max(sortedPlayers.length, 1));
+    const y = 282 + index * Math.min(40, 610 / Math.max(sortedPlayers.length, 1));
     context.fillStyle = gold;
     context.font = "bold 25px Arial, sans-serif";
     context.fillText(`${player.number}.`, 84, y);
@@ -263,7 +266,7 @@ function downloadSquadPng(fixture, players, captainId) {
     if (player.id === captainId) {
       context.fillStyle = gold;
       context.font = "bold 15px Arial, sans-serif";
-      context.fillText("C", 690, y);
+      context.fillText("C", 150 + context.measureText(player.name.toUpperCase()).width, y);
     }
   });
 
