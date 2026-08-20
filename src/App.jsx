@@ -208,14 +208,6 @@ function downloadSquadPng(fixture, players, captainId) {
     context.quadraticCurveTo(x + 25, 520, x - 60, 1100);
     context.stroke();
   }
-  context.globalAlpha = 0.2;
-  context.fillStyle = "#D9DEED";
-  [110, 250, 390].forEach(y => {
-    context.beginPath();
-    context.arc(110, y, 18, 0, Math.PI * 2);
-    context.arc(690, y + 25, 18, 0, Math.PI * 2);
-    context.fill();
-  });
   context.globalAlpha = 0.14;
   context.strokeStyle = gold;
   context.lineWidth = 2;
@@ -238,10 +230,10 @@ function downloadSquadPng(fixture, players, captainId) {
 
   context.textAlign = "left";
   context.fillStyle = gold;
-  context.font = "bold 22px Arial, sans-serif";
+  context.font = "bold 29px Arial, sans-serif";
   context.fillText(fixture.opponent.toUpperCase(), 72, 48);
   context.fillStyle = muted;
-  context.font = "bold 16px Arial, sans-serif";
+  context.font = "bold 22px Arial, sans-serif";
   context.fillText(`${formatFixtureDate(fixture.date)}  |  ${fixture.venue}`, 72, 76);
   context.fillStyle = chalk;
   context.font = "bold 112px Impact, sans-serif";
@@ -249,10 +241,19 @@ function downloadSquadPng(fixture, players, captainId) {
 
   context.textAlign = "right";
   context.fillStyle = muted;
-  context.font = "bold 17px Arial, sans-serif";
-  context.fillText(`${fixture.homeTeam}  VS  ${fixture.awayTeam}`, 722, 48);
+  const matchup = `${fixture.homeTeam}  VS  ${fixture.awayTeam}`;
+  let matchupSize = 22;
+  context.font = `bold ${matchupSize}px Arial, sans-serif`;
+  while (context.measureText(matchup).width > 310 && matchupSize > 13) {
+    matchupSize -= 1;
+    context.font = `bold ${matchupSize}px Arial, sans-serif`;
+  }
+  context.fillText(matchup, 722, 48);
   const competition = fixture.competition === "One" ? "" : fixture.competition;
-  if (competition) context.fillText(competition, 722, 76);
+  if (competition) {
+    context.font = "bold 20px Arial, sans-serif";
+    context.fillText(competition, 722, 78);
+  }
 
   context.textAlign = "left";
   sortedPlayers.forEach((player, index) => {
@@ -282,22 +283,31 @@ function downloadSquadPng(fixture, players, captainId) {
   context.font = "15px Arial, sans-serif";
   context.fillText(captain ? `CAPTAIN  ${captain.name.toUpperCase()}` : "CAPTAIN  NOT SELECTED", 72, 1050);
 
-  // Simple club crest treatment using the same shield language as the main app.
+  // Recreate the supplied horizontal club logo lockup at the bottom.
   context.save();
-  context.translate(650, 980);
+  context.translate(530, 1000);
   context.fillStyle = gold;
   context.beginPath();
-  context.moveTo(0, -88); context.lineTo(72, -55); context.lineTo(62, 38); context.lineTo(0, 88); context.lineTo(-62, 38); context.lineTo(-72, -55); context.closePath(); context.fill();
+  context.moveTo(0, -60); context.lineTo(50, -38); context.lineTo(43, 26); context.lineTo(0, 60); context.lineTo(-43, 26); context.lineTo(-50, -38); context.closePath(); context.fill();
   context.fillStyle = navy;
   context.beginPath();
-  context.moveTo(0, -78); context.lineTo(62, -49); context.lineTo(53, 32); context.lineTo(0, 75); context.lineTo(-53, 32); context.lineTo(-62, -49); context.closePath(); context.fill();
+  context.moveTo(0, -51); context.lineTo(42, -33); context.lineTo(36, 22); context.lineTo(0, 51); context.lineTo(-36, 22); context.lineTo(-42, -33); context.closePath(); context.fill();
   context.fillStyle = gold;
   context.textAlign = "center";
-  context.font = "bold 34px Arial, sans-serif";
+  context.font = "bold 28px Arial, sans-serif";
   context.fillText("W", 0, 12);
-  context.font = "bold 10px Arial, sans-serif";
+  context.font = "bold 8px Arial, sans-serif";
   context.fillText("KNIGHTS", 0, 45);
   context.restore();
+
+  context.textAlign = "left";
+  context.fillStyle = gold;
+  context.font = "bold 25px Arial, sans-serif";
+  context.fillText("WEST BRIDGFORD", 590, 985);
+  context.fillText("KNIGHTS", 590, 1016);
+  context.fillStyle = muted;
+  context.font = "bold 17px Arial, sans-serif";
+  context.fillText("EST. 2019", 590, 1045);
 
   context.fillStyle = gold;
   context.fillRect(72, 1072, 650, 2);
