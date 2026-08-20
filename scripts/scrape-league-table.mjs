@@ -8,11 +8,11 @@ const execFileAsync = promisify(execFile);
 const LEAGUE_TABLE_URL =
   "https://fulltime.thefa.com/table.html?league=2581263&selectedSeason=800979694&selectedDivision=53676971&selectedCompetition=0&selectedFixtureGroupKey=1_878472488";
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error("SUPABASE_URL and SUPABASE_ANON_KEY must be set.");
+  console.error("SUPABASE_URL/VITE_SUPABASE_URL and SUPABASE_ANON_KEY/VITE_SUPABASE_ANON_KEY must be set.");
   process.exit(1);
 }
 
