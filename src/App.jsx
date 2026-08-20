@@ -422,6 +422,14 @@ export default function App() {
     setNewPlayerName("");
   }
 
+  function updatePlayer(id, updates) {
+    const player = players.find(p => p.id === id);
+    if (!player) return;
+    const updated = { ...player, ...updates };
+    setPlayers(prev => prev.map(p => p.id === id ? updated : p));
+    void savePlayer(updated).catch(reportSaveError);
+  }
+
   function addFixture() {
     if (!fixtureForm.opponent.trim() || !fixtureForm.date) return;
     const isHome = fixtureForm.venue === "H";
@@ -619,7 +627,8 @@ export default function App() {
             {tab === "squad" && (
               <SquadTab
                 players={players} analysis={analysis}
-                newPlayerName={newPlayerName} setNewPlayerName={setNewPlayerName} addPlayer={addPlayer} role={role}
+                newPlayerName={newPlayerName} setNewPlayerName={setNewPlayerName} addPlayer={addPlayer}
+                updatePlayer={updatePlayer} role={role}
               />
             )}
 
@@ -728,7 +737,7 @@ function Dashboard({ upcoming, played, results, topScorers, setTab, role }) {
 }
 
 // ---------- Squad ----------
-function SquadTab({ players, analysis, newPlayerName, setNewPlayerName, addPlayer, role }) {
+function SquadTab({ players, analysis, newPlayerName, setNewPlayerName, addPlayer, updatePlayer, role }) {
   return (
     <div>
       <SectionHeading eyebrow={`${players.length} registered`} title="Squad" />
@@ -747,27 +756,92 @@ function SquadTab({ players, analysis, newPlayerName, setNewPlayerName, addPlaye
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {analysis.map(p => (
-          <Panel key={p.id}>
-            <div className="flex items-center gap-3 mb-3">
-              <ShirtBadge number={p.number} />
-              <div>
-                <div className="text-sm font-semibold">{p.name}</div>
-                <Badge subtle color={COLORS.sky}>{p.pos}</Badge>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div><div style={{ fontFamily: "'Bebas Neue', sans-serif", color: COLORS.gold }} className="text-xl">{p.apps}</div><div style={{ color: COLORS.chalkDim }} className="text-[10px] uppercase">Apps</div></div>
-              <div><div style={{ fontFamily: "'Bebas Neue', sans-serif", color: COLORS.gold }} className="text-xl">{p.goals}</div><div style={{ color: COLORS.chalkDim }} className="text-[10px] uppercase">Goals</div></div>
-              <div><div style={{ fontFamily: "'Bebas Neue', sans-serif", color: COLORS.gold }} className="text-xl">{p.assists}</div><div style={{ color: COLORS.chalkDim }} className="text-[10px] uppercase">Assists</div></div>
-            </div>
-            <div className="mt-3 flex items-center justify-between">
-              <span style={{ color: COLORS.chalkDim }} className="text-[11px]">Avg rating</span>
-              <Stars value={p.avgRating} />
-            </div>
-          </Panel>
+          <PlayerCard key={p.id} p={p} role={role} updatePlayer={updatePlayer} />
         ))}
       </div>
     </div>
+  );
+}
+
+function PlayerCard({ p, role, updatePlayer }) {
+  const [name, setName] = useState(p.name);
+  const [number, setNumber] = useState(String(p.number));
+  const editable = role === "manager";
+
+  useEffect(() => setName(p.name), [p.name]);
+  useEffect(() => setNumber(String(p.number)), [p.number]);
+
+  function commitName() {
+    const trimmed = name.trim();
+    if (trimmed && trimmed !== p.name) updatePlayer(p.id, { name: trimmed });
+    else setName(p.name);
+  }
+
+  function commitNumber() {
+    const parsed = Number(number);
+    if (parsed > 0 && parsed !== p.number) updatePlayer(p.id, { number: parsed });
+    else setNumber(String(p.number));
+  }
+
+  return (
+    <Panel>
+      <div className="flex items-center gap-3 mb-3">
+        {editable ? (
+          <input
+            type="number"
+            value={number}
+            onChange={e => setNumber(e.target.value)}
+            onBlur={commitNumber}
+            style={{
+              width: 40, height: 40,
+              background: `linear-gradient(155deg, ${COLORS.panel2}, ${COLORS.bg})`,
+              border: `1px solid ${COLORS.gold}66`, color: COLORS.gold,
+              fontFamily: "'Bebas Neue', sans-serif",
+            }}
+            className="rounded-md text-center text-lg shrink-0"
+          />
+        ) : (
+          <ShirtBadge number={p.number} />
+        )}
+        <div className="flex-1 min-w-0">
+          {editable ? (
+            <input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onBlur={commitName}
+              style={{ background: COLORS.panel2, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
+              className="text-sm font-semibold px-2 py-1 rounded-md w-full mb-1"
+            />
+          ) : (
+            <div className="text-sm font-semibold">{p.name}</div>
+          )}
+          {editable ? (
+            <select
+              value={p.pos}
+              onChange={e => updatePlayer(p.id, { pos: e.target.value })}
+              style={{ background: COLORS.panel2, border: `1px solid ${COLORS.sky}66`, color: COLORS.sky }}
+              className="text-[11px] px-2 py-0.5 rounded-full font-medium tracking-wide"
+            >
+              <option value="GK">GK</option>
+              <option value="DEF">DEF</option>
+              <option value="MID">MID</option>
+              <option value="FWD">FWD</option>
+            </select>
+          ) : (
+            <Badge subtle color={COLORS.sky}>{p.pos}</Badge>
+          )}
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div><div style={{ fontFamily: "'Bebas Neue', sans-serif", color: COLORS.gold }} className="text-xl">{p.apps}</div><div style={{ color: COLORS.chalkDim }} className="text-[10px] uppercase">Apps</div></div>
+        <div><div style={{ fontFamily: "'Bebas Neue', sans-serif", color: COLORS.gold }} className="text-xl">{p.goals}</div><div style={{ color: COLORS.chalkDim }} className="text-[10px] uppercase">Goals</div></div>
+        <div><div style={{ fontFamily: "'Bebas Neue', sans-serif", color: COLORS.gold }} className="text-xl">{p.assists}</div><div style={{ color: COLORS.chalkDim }} className="text-[10px] uppercase">Assists</div></div>
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <span style={{ color: COLORS.chalkDim }} className="text-[11px]">Avg rating</span>
+        <Stars value={p.avgRating} />
+      </div>
+    </Panel>
   );
 }
 
