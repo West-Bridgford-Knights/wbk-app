@@ -176,12 +176,14 @@ function SectionHeading({ eyebrow, title, right }) {
   return (
     <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
       <div>
-        <div
-          style={{ color: COLORS.gold, fontFamily: "'JetBrains Mono', monospace" }}
-          className="text-[11px] tracking-[0.2em] uppercase mb-1"
-        >
-          {eyebrow}
-        </div>
+        {eyebrow && (
+          <div
+            style={{ color: COLORS.gold, fontFamily: "'JetBrains Mono', monospace" }}
+            className="text-[11px] tracking-[0.2em] uppercase mb-1"
+          >
+            {eyebrow}
+          </div>
+        )}
         <h2
           style={{ color: COLORS.chalk, fontFamily: "'Bebas Neue', sans-serif" }}
           className="text-3xl tracking-wide leading-none"
@@ -960,7 +962,6 @@ function FixturesTab({ fixtures, fixtureForm, setFixtureForm, addFixture, role, 
   return (
     <div>
       <SectionHeading
-        eyebrow="Scraped daily from the league site"
         title="Fixtures"
         right={
           <div className="flex items-center gap-2">
@@ -973,10 +974,11 @@ function FixturesTab({ fixtures, fixtureForm, setFixtureForm, addFixture, role, 
           </div>
         }
       />
-      <div style={{ color: COLORS.chalkDim }} className="text-xs mb-1.5 flex items-center gap-1.5">
-        <Info size={12}/> Refreshed daily by a scheduled scraper hitting the league fixtures page, stored in Supabase.
-        {lastScraped && ` Last scraped ${new Date(lastScraped).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}.`}
-      </div>
+      {lastScraped && (
+        <div style={{ color: COLORS.chalkDim }} className="text-xs mb-1.5 flex items-center gap-1.5">
+          <Info size={12}/> Last updated {new Date(lastScraped).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}.
+        </div>
+      )}
       <div style={{ color: COLORS.chalkDim }} className="text-xs mb-4 flex items-center gap-1.5">
         <Info size={12}/> Subscribing keeps your calendar in sync automatically. Opens directly in Apple/Outlook calendars; for Google Calendar use Settings → Add calendar → From URL and paste the copied link.
       </div>
@@ -1334,7 +1336,6 @@ function LeagueTableTab({ sortedTable, refreshScrape, scraping }) {
   return (
     <div>
       <SectionHeading
-        eyebrow="Scraped daily from the league site"
         title="League Table"
         right={
           <button onClick={refreshScrape} disabled={scraping} style={{ background: COLORS.panel2, color: COLORS.gold, border: `1px solid ${COLORS.gold}55` }} className="text-sm px-3 py-2 rounded-md flex items-center gap-2">
@@ -1371,10 +1372,11 @@ function LeagueTableTab({ sortedTable, refreshScrape, scraping }) {
           </div>
         </Panel>
       )}
-      <div style={{ color: COLORS.chalkDim }} className="text-xs mt-3 flex items-center gap-1.5">
-        <Info size={12}/> Refreshed daily by a scheduled scraper hitting the league website, stored in Supabase.
-        {lastScraped && ` Last scraped ${new Date(lastScraped).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}.`}
-      </div>
+      {lastScraped && (
+        <div style={{ color: COLORS.chalkDim }} className="text-xs mt-3 flex items-center gap-1.5">
+          <Info size={12}/> Last updated {new Date(lastScraped).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}.
+        </div>
+      )}
     </div>
   );
 }
