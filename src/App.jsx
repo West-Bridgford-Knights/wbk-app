@@ -279,13 +279,13 @@ async function downloadSquadPng(fixture, players, captainId) {
   context.fillRect(72, 850, 656, 2);
   context.fillStyle = gold;
   context.font = "bold 18px Arial, sans-serif";
-  context.fillText("MANAGER", 72, 886);
+  context.fillText("MANAGER", 72, 937);
   context.fillStyle = chalk;
   context.font = "bold 27px Arial, sans-serif";
-  context.fillText("LUKE MAXTED", 72, 920);
+  context.fillText("LUKE MAXTED", 72, 971);
   context.fillStyle = muted;
   context.font = "15px Arial, sans-serif";
-  context.fillText(captain ? `CAPTAIN  ${captain.name.toUpperCase()}` : "CAPTAIN  NOT SELECTED", 72, 948);
+  context.fillText(captain ? `CAPTAIN  ${captain.name.toUpperCase()}` : "CAPTAIN  NOT SELECTED", 72, 999);
 
   const logo = new Image();
   logo.src = clubLogoUrl;
@@ -293,7 +293,7 @@ async function downloadSquadPng(fixture, players, captainId) {
     logo.onload = resolve;
     logo.onerror = resolve;
   });
-  if (logo.complete && logo.naturalWidth) context.drawImage(logo, 390, 900, 338, 169);
+  if (logo.complete && logo.naturalWidth) context.drawImage(logo, 390, 877, 338, 169);
 
   context.fillStyle = gold;
   context.fillRect(72, 1072, 656, 2);
