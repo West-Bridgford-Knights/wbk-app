@@ -47,25 +47,29 @@ insert into public.players (id, name, number, pos) values
   ('p41', 'David Nice', 41, 'DEF'),
   ('p42', 'Ross Whiting', 42, 'FWD');
 
+-- Fixture ids use the "fa-<id>" scheme keyed off the FA Full-Time fixture id (from each
+-- fixture's displayFixture.html?id=... link), matching what scripts/scrape-fixtures.mjs
+-- upserts on every scrape — so a scrape after this seed updates these rows in place
+-- instead of inserting duplicates.
 insert into public.fixtures
   (id, type, date, home_team, away_team, opponent, venue, competition, status, opp_pos)
 values
-  ('f1', 'L', '2026-09-06T10:30', 'West Bridgford Knights F.C.', 'Fanzines United A', 'Fanzines United A', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
-  ('f2', 'L', '2026-09-13T10:30', 'Shire Athletic F.C.', 'West Bridgford Knights F.C.', 'Shire Athletic F.C.', 'South Notts Academy, Radcliffe-on-Trent', 'One', 'upcoming', 6),
-  ('f3', 'CC', '2026-09-20T10:30', 'West Bridgford Knights F.C.', 'Bridgford Villa FC Mens', 'Bridgford Villa FC Mens', 'GRESHAM SPORTS PARK', 'Sunday Senior Trophy', 'upcoming', 6),
-  ('f4', 'L', 'TBC', 'West Bridgford Knights F.C.', 'Notts Lions', 'Notts Lions', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
-  ('f5', 'L', '2026-10-11T10:30', 'Radcliffe Olympic FC', 'West Bridgford Knights F.C.', 'Radcliffe Olympic FC', 'Radcliffe Olympic FC', 'One', 'upcoming', 6),
-  ('f6', 'L', '2026-10-18T10:30', 'West Bridgford Knights F.C.', 'Notts. Medics F.C', 'Notts. Medics F.C', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
-  ('f7', 'L', '2026-10-25T10:30', 'West Bridgford Knights F.C.', 'Bilborough TRD FC', 'Bilborough TRD FC', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
-  ('f8', 'L', '2026-11-01T10:30', 'Bilborough TRD FC', 'West Bridgford Knights F.C.', 'Bilborough TRD FC', 'Harvey Hadden', 'One', 'upcoming', 6),
-  ('f9', 'L', '2026-11-08T10:30', 'West Bridgford Knights F.C.', 'Legion F.C', 'Legion F.C', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
-  ('f10', 'L', '2026-11-15T10:30', 'Fanzines United A', 'West Bridgford Knights F.C.', 'Fanzines United A', 'Elms Park, Ruddington #1', 'One', 'upcoming', 6),
-  ('f11', 'L', '2026-11-22T10:30', 'West Bridgford Knights F.C.', 'Shire Athletic F.C.', 'Shire Athletic F.C.', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
-  ('f12', 'L', '2026-11-29T10:30', 'Tollerton F.C.', 'West Bridgford Knights F.C.', 'Tollerton F.C.', 'East Leake Leisure Centre, #1', 'One', 'upcoming', 6),
-  ('f13', 'L', '2026-12-06T10:30', 'West Bridgford Knights F.C.', 'Stratford Haven F.C', 'Stratford Haven F.C', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
-  ('f14', 'L', 'TBC', 'Notts Lions', 'West Bridgford Knights F.C.', 'Notts Lions', 'Dunkirk FC #1', 'One', 'upcoming', 6),
-  ('f15', 'L', '2026-12-13T10:30', 'West Bridgford Knights F.C.', 'Tollerton F.C.', 'Tollerton F.C.', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
-  ('f16', 'L', '2027-01-03T10:30', 'West Bridgford Knights F.C.', 'Radcliffe Olympic FC', 'Radcliffe Olympic FC', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
-  ('f17', 'L', '2027-01-17T10:30', 'Legion F.C', 'West Bridgford Knights F.C.', 'Legion F.C', 'Titchfield Park, Hucknall 2', 'One', 'upcoming', 6),
-  ('f18', 'L', '2027-01-24T10:30', 'Stratford Haven F.C', 'West Bridgford Knights F.C.', 'Stratford Haven F.C', 'Gresham Sports Park #4', 'One', 'upcoming', 6),
-  ('f19', 'L', '2027-02-28T10:30', 'Notts. Medics F.C', 'West Bridgford Knights F.C.', 'Notts. Medics F.C', 'Riverside Sports Centre Riverside Sports Centre 5', 'One', 'upcoming', 6);
+  ('fa-30058065', 'L', '2026-09-06T10:30', 'West Bridgford Knights F.C.', 'Fanzines United A', 'Fanzines United A', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
+  ('fa-30058070', 'L', '2026-09-13T10:30', 'Shire Athletic F.C.', 'West Bridgford Knights F.C.', 'Shire Athletic F.C.', 'South Notts Academy, Radcliffe-on-Trent', 'One', 'upcoming', 6),
+  ('fa-30391371', 'CC', '2026-09-20T10:30', 'West Bridgford Knights F.C.', 'Bridgford Villa FC Mens', 'Bridgford Villa FC Mens', 'GRESHAM SPORTS PARK', 'Sunday Senior Trophy', 'upcoming', 6),
+  ('fa-30058085', 'L', 'TBC', 'West Bridgford Knights F.C.', 'Notts Lions', 'Notts Lions', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
+  ('fa-30058090', 'L', '2026-10-11T10:30', 'Radcliffe Olympic FC', 'West Bridgford Knights F.C.', 'Radcliffe Olympic FC', 'Radcliffe Olympic FC', 'One', 'upcoming', 6),
+  ('fa-30058095', 'L', '2026-10-18T10:30', 'West Bridgford Knights F.C.', 'Notts. Medics F.C', 'Notts. Medics F.C', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
+  ('fa-30058100', 'L', '2026-10-25T10:30', 'West Bridgford Knights F.C.', 'Bilborough TRD FC', 'Bilborough TRD FC', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
+  ('fa-30058101', 'L', '2026-11-01T10:30', 'Bilborough TRD FC', 'West Bridgford Knights F.C.', 'Bilborough TRD FC', 'Harvey Hadden', 'One', 'upcoming', 6),
+  ('fa-30058110', 'L', '2026-11-08T10:30', 'West Bridgford Knights F.C.', 'Legion F.C', 'Legion F.C', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
+  ('fa-30058111', 'L', '2026-11-15T10:30', 'Fanzines United A', 'West Bridgford Knights F.C.', 'Fanzines United A', 'Elms Park, Ruddington #1', 'One', 'upcoming', 6),
+  ('fa-30058120', 'L', '2026-11-22T10:30', 'West Bridgford Knights F.C.', 'Shire Athletic F.C.', 'Shire Athletic F.C.', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
+  ('fa-30058121', 'L', '2026-11-29T10:30', 'Tollerton F.C.', 'West Bridgford Knights F.C.', 'Tollerton F.C.', 'East Leake Leisure Centre, #1', 'One', 'upcoming', 6),
+  ('fa-30058130', 'L', '2026-12-06T10:30', 'West Bridgford Knights F.C.', 'Stratford Haven F.C', 'Stratford Haven F.C', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
+  ('fa-30058131', 'L', 'TBC', 'Notts Lions', 'West Bridgford Knights F.C.', 'Notts Lions', 'Dunkirk FC #1', 'One', 'upcoming', 6),
+  ('fa-30058075', 'L', '2026-12-13T10:30', 'West Bridgford Knights F.C.', 'Tollerton F.C.', 'Tollerton F.C.', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
+  ('fa-30058140', 'L', '2027-01-03T10:30', 'West Bridgford Knights F.C.', 'Radcliffe Olympic FC', 'Radcliffe Olympic FC', 'Gresham Sports Park #5', 'One', 'upcoming', 6),
+  ('fa-30058060', 'L', '2027-01-17T10:30', 'Legion F.C', 'West Bridgford Knights F.C.', 'Legion F.C', 'Titchfield Park, Hucknall 2', 'One', 'upcoming', 6),
+  ('fa-30058080', 'L', '2027-01-24T10:30', 'Stratford Haven F.C', 'West Bridgford Knights F.C.', 'Stratford Haven F.C', 'Gresham Sports Park #4', 'One', 'upcoming', 6),
+  ('fa-30058141', 'L', '2027-02-28T10:30', 'Notts. Medics F.C', 'West Bridgford Knights F.C.', 'Notts. Medics F.C', 'Riverside Sports Centre Riverside Sports Centre 5', 'One', 'upcoming', 6);

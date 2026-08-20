@@ -11,6 +11,7 @@ import {
 import { isSupabaseConfigured } from "./lib/supabase";
 import {
   loadAppData,
+  loadFixtures,
   loadLeagueTable,
   saveAvailability,
   saveFixture,
@@ -67,6 +68,32 @@ function difficultyLabel(d) {
   if (d >= 4) return { text: "Tough", color: COLORS.clay };
   if (d >= 2.6) return { text: "Even", color: COLORS.gold };
   return { text: "Winnable", color: COLORS.green };
+}
+
+// Availability is keyed by date (YYYY-MM-DD), not fixture id, so a rescraped/rescheduled
+// fixture never orphans the responses players have already given for that Sunday.
+function dateKey(value) {
+  if (!value || value === "TBC") return null;
+  return String(value).slice(0, 10);
+}
+
+function toInputDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function getSundaysBetween(fromStr, toStr) {
+  if (!fromStr || !toStr) return [];
+  const start = new Date(`${fromStr}T00:00:00`);
+  const end = new Date(`${toStr}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return [];
+  const cursor = new Date(start);
+  cursor.setDate(cursor.getDate() + ((7 - cursor.getDay()) % 7));
+  const dates = [];
+  while (cursor <= end) {
+    dates.push(toInputDate(cursor));
+    cursor.setDate(cursor.getDate() + 7);
+  }
+  return dates;
 }
 
 // ---------- Small UI atoms ----------
@@ -326,6 +353,7 @@ export default function App() {
   const [lineupFixtureId, setLineupFixtureId] = useState(fixtures.find(f => f.status === "upcoming")?.id || null);
   const [leagueTable, setLeagueTable] = useState([]);
   const [leagueTableLoading, setLeagueTableLoading] = useState(false);
+  const [fixturesLoading, setFixturesLoading] = useState(false);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -353,6 +381,14 @@ export default function App() {
       .then(setLeagueTable)
       .catch(reportSaveError)
       .finally(() => setLeagueTableLoading(false));
+  }
+
+  function refreshFixtures() {
+    setFixturesLoading(true);
+    loadFixtures()
+      .then(setFixtures)
+      .catch(reportSaveError)
+      .finally(() => setFixturesLoading(false));
   }
 
   function selectActivePlayer(playerId) {
@@ -495,10 +531,10 @@ export default function App() {
     setFixtureForm({ opponent: "", date: "", venue: "H", competition: "One" });
   }
 
-  function setAvail(fixtureId, playerId, val) {
-    const next = { ...availability, [fixtureId]: { ...(availability[fixtureId] || {}), [playerId]: val } };
+  function setAvail(date, playerId, val) {
+    const next = { ...availability, [date]: { ...(availability[date] || {}), [playerId]: val } };
     setAvailability(next);
-    void saveAvailability(fixtureId, playerId, val).catch(reportSaveError);
+    void saveAvailability(date, playerId, val).catch(reportSaveError);
   }
 
   function assignSlot(fixtureId, slotKey, playerId) {
@@ -691,12 +727,13 @@ export default function App() {
               <FixturesTab
                 fixtures={fixtures} fixtureForm={fixtureForm} setFixtureForm={setFixtureForm}
                 addFixture={addFixture} role={role}
+                refreshFixtures={refreshFixtures} fixturesLoading={fixturesLoading}
               />
             )}
 
             {tab === "availability" && (
               <AvailabilityTab
-                fixtures={upcoming} players={players} availability={availability}
+                fixtures={fixtures} players={players} availability={availability}
                 setAvail={setAvail} role={role} activePlayerId={activePlayerId}
               />
             )}
@@ -901,11 +938,48 @@ function PlayerCard({ p, role, updatePlayer }) {
 }
 
 // ---------- Fixtures ----------
-function FixturesTab({ fixtures, fixtureForm, setFixtureForm, addFixture, role }) {
+function FixturesTab({ fixtures, fixtureForm, setFixtureForm, addFixture, role, refreshFixtures, fixturesLoading }) {
+  const [calendarCopied, setCalendarCopied] = useState(false);
   const sorted = [...fixtures].sort((a,b)=>a.date === "TBC" ? 1 : b.date === "TBC" ? -1 : a.date.localeCompare(b.date));
+  const lastScraped = fixtures.reduce((latest, f) => (f.scrapedAt && (!latest || f.scrapedAt > latest) ? f.scrapedAt : latest), null);
+
+  function subscribeToCalendar() {
+    // Resolved against the current page rather than a hardcoded host, so this keeps working
+    // whichever domain/org GitHub Pages serves the app from.
+    const icsUrl = new URL("fixtures.ics", window.location.href).toString();
+    navigator.clipboard?.writeText(icsUrl).then(() => {
+      setCalendarCopied(true);
+      setTimeout(() => setCalendarCopied(false), 3000);
+    }).catch(() => {});
+    // webcal:// hands the URL straight to the OS's default calendar app (Apple Calendar,
+    // Outlook) as a live subscription; browsers/apps with no handler just no-op, leaving
+    // the clipboard copy above as the fallback for Google Calendar's "From URL" import.
+    window.location.href = icsUrl.replace(/^https?:/, "webcal:");
+  }
+
   return (
     <div>
-      <SectionHeading eyebrow="Season schedule" title="Fixtures" />
+      <SectionHeading
+        eyebrow="Scraped daily from the league site"
+        title="Fixtures"
+        right={
+          <div className="flex items-center gap-2">
+            <button onClick={subscribeToCalendar} style={{ background: COLORS.gold, color: COLORS.bg }} className="text-sm font-semibold px-3 py-2 rounded-md flex items-center gap-1.5">
+              <Download size={14}/> {calendarCopied ? "Link copied!" : "Subscribe to calendar"}
+            </button>
+            <button onClick={refreshFixtures} disabled={fixturesLoading} style={{ background: COLORS.panel2, color: COLORS.gold, border: `1px solid ${COLORS.gold}55` }} className="text-sm px-3 py-2 rounded-md flex items-center gap-2">
+              <RefreshCw size={14} className={fixturesLoading ? "animate-spin" : ""} /> {fixturesLoading ? "Refreshing…" : "Reload latest"}
+            </button>
+          </div>
+        }
+      />
+      <div style={{ color: COLORS.chalkDim }} className="text-xs mb-1.5 flex items-center gap-1.5">
+        <Info size={12}/> Refreshed daily by a scheduled scraper hitting the league fixtures page, stored in Supabase.
+        {lastScraped && ` Last scraped ${new Date(lastScraped).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" })}.`}
+      </div>
+      <div style={{ color: COLORS.chalkDim }} className="text-xs mb-4 flex items-center gap-1.5">
+        <Info size={12}/> Subscribing keeps your calendar in sync automatically. Opens directly in Apple/Outlook calendars; for Google Calendar use Settings → Add calendar → From URL and paste the copied link.
+      </div>
       {role === "manager" && (
         <Panel className="mb-5">
           <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-3">Add fixture</div>
@@ -954,43 +1028,89 @@ function FixturesTab({ fixtures, fixtureForm, setFixtureForm, addFixture, role }
 
 // ---------- Availability ----------
 function AvailabilityTab({ fixtures, players, availability, setAvail, role, activePlayerId }) {
+  const [from, setFrom] = useState(() => toInputDate(new Date()));
+  const [to, setTo] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 84);
+    return toInputDate(d);
+  });
+
   const relevantPlayers = role === "player" ? players.filter(p => p.id === activePlayerId) : players;
+  const sundays = useMemo(() => getSundaysBetween(from, to), [from, to]);
+  const fixtureByDate = useMemo(() => {
+    const map = {};
+    fixtures.forEach(f => {
+      const key = dateKey(f.date);
+      if (key) map[key] = f;
+    });
+    return map;
+  }, [fixtures]);
+
   return (
     <div>
-      <SectionHeading eyebrow={role === "player" ? "Set your own status" : "Squad availability"} title="Availability" />
-      {fixtures.length === 0 && <Panel><div style={{ color: COLORS.chalkDim }} className="text-sm">No upcoming fixtures.</div></Panel>}
+      <SectionHeading
+        eyebrow={role === "player" ? "Set your own status" : "Squad availability"}
+        title="Availability"
+        right={
+          <div className="flex items-center gap-2 flex-wrap">
+            <label style={{ color: COLORS.chalkDim }} className="text-xs flex items-center gap-1.5">
+              From
+              <input type="date" value={from} onChange={e => setFrom(e.target.value)}
+                style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
+                className="text-sm px-2 py-1.5 rounded-md" />
+            </label>
+            <label style={{ color: COLORS.chalkDim }} className="text-xs flex items-center gap-1.5">
+              To
+              <input type="date" value={to} onChange={e => setTo(e.target.value)}
+                style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
+                className="text-sm px-2 py-1.5 rounded-md" />
+            </label>
+          </div>
+        }
+      />
+      {sundays.length === 0 && <Panel><div style={{ color: COLORS.chalkDim }} className="text-sm">No Sundays in the selected date range.</div></Panel>}
       <div className="flex flex-col gap-5">
-        {fixtures.map(f => (
-          <Panel key={f.id}>
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <div className="text-sm font-semibold">{f.opponent} <span style={{ color: COLORS.chalkDim, fontWeight: 400 }}>· {formatFixtureDate(f.date)}</span></div>
-              <Badge subtle color={COLORS.sky}>{f.homeTeam.startsWith("West Bridgford") ? "Home" : "Away"}</Badge>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {relevantPlayers.map(p => {
-                const val = availability[f.id]?.[p.id] || "unset";
-                return (
-                  <div key={p.id} className="flex items-center justify-between text-sm py-1" style={{ borderTop: `1px solid ${COLORS.line}` }}>
-                    <div className="flex items-center gap-2"><ShirtBadge number={p.number} size={24} /> {p.name}</div>
-                    <div className="flex gap-1">
-                      {["yes", "maybe", "no"].map(opt => {
-                        const active = val === opt;
-                        const c = opt === "yes" ? COLORS.green : opt === "maybe" ? COLORS.gold : COLORS.clay;
-                        return (
-                          <button key={opt} onClick={() => setAvail(f.id, p.id, opt)}
-                            style={{ background: active ? c + "33" : "transparent", border: `1px solid ${active ? c : COLORS.line}`, color: active ? c : COLORS.chalkDim }}
-                            className="text-[11px] px-2 py-1 rounded-md capitalize">
-                            {opt}
-                          </button>
-                        );
-                      })}
+        {sundays.map(date => {
+          const fixture = fixtureByDate[date];
+          return (
+            <Panel key={date}>
+              <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <div className="text-sm font-semibold">
+                  {new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "2-digit", year: "2-digit" })}
+                  {fixture && <span style={{ color: COLORS.chalkDim, fontWeight: 400 }}> · {fixture.opponent}</span>}
+                </div>
+                {fixture ? (
+                  <Badge subtle color={COLORS.sky}>{fixture.homeTeam.startsWith("West Bridgford") ? "Home" : "Away"}</Badge>
+                ) : (
+                  <Badge subtle color={COLORS.chalkDim}>No fixture scheduled</Badge>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {relevantPlayers.map(p => {
+                  const val = availability[date]?.[p.id] || "unset";
+                  return (
+                    <div key={p.id} className="flex items-center justify-between text-sm py-1" style={{ borderTop: `1px solid ${COLORS.line}` }}>
+                      <div className="flex items-center gap-2"><ShirtBadge number={p.number} size={24} /> {p.name}</div>
+                      <div className="flex gap-1">
+                        {["yes", "maybe", "no"].map(opt => {
+                          const active = val === opt;
+                          const c = opt === "yes" ? COLORS.green : opt === "maybe" ? COLORS.gold : COLORS.clay;
+                          return (
+                            <button key={opt} onClick={() => setAvail(date, p.id, opt)}
+                              style={{ background: active ? c + "33" : "transparent", border: `1px solid ${active ? c : COLORS.line}`, color: active ? c : COLORS.chalkDim }}
+                              className="text-[11px] px-2 py-1 rounded-md capitalize">
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Panel>
-        ))}
+                  );
+                })}
+              </div>
+            </Panel>
+          );
+        })}
       </div>
     </div>
   );
@@ -1001,7 +1121,8 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
   const [selectedSlot, setSelectedSlot] = useState(null);
   const fixture = fixtures.find(f => f.id === lineupFixtureId) || fixtures[0];
   const current = fixture ? (lineups[fixture.id] || { starters: {}, subs: [], captain: null }) : { starters: {}, subs: [], captain: null };
-  const availableIds = fixture ? players.filter(p => availability[fixture.id]?.[p.id] === "yes").map(p => p.id) : [];
+  const fixtureDateKey = fixture ? dateKey(fixture.date) : null;
+  const availableIds = fixture ? players.filter(p => availability[fixtureDateKey]?.[p.id] === "yes").map(p => p.id) : [];
   const usedIds = new Set([...Object.values(current.starters), ...current.subs]);
 
   if (role !== "manager") return <div><SectionHeading eyebrow="Manager access" title="Matchday Squads" /><Panel><div style={{ color: COLORS.chalkDim }}>Squad selection is available to managers only.</div></Panel></div>;

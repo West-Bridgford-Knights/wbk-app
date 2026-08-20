@@ -47,6 +47,7 @@ function fixtureFromRow(row) {
     competition: row.competition,
     status: row.status,
     oppPos: row.opp_pos,
+    scrapedAt: row.scraped_at,
   };
 }
 
@@ -66,7 +67,7 @@ export async function loadAppData() {
     leagueTable,
     availability: availabilityRows.reduce((all, row) => ({
       ...all,
-      [row.fixture_id]: { ...(all[row.fixture_id] || {}), [row.player_id]: row.status },
+      [row.date]: { ...(all[row.date] || {}), [row.player_id]: row.status },
     }), {}),
     lineups: lineupRows.reduce((all, row) => ({
       ...all,
@@ -83,6 +84,11 @@ export async function loadLeagueTable() {
   return selectAll("league_table", "pos");
 }
 
+export async function loadFixtures() {
+  const rows = await selectAll("fixtures", "date");
+  return rows.map(fixtureFromRow);
+}
+
 export async function savePlayer(player) {
   await upsertRows("players", [player]);
 }
@@ -91,8 +97,8 @@ export async function saveFixture(fixture) {
   await upsertRows("fixtures", [fixtureToRow(fixture)]);
 }
 
-export async function saveAvailability(fixtureId, playerId, status) {
-  await upsertRows("availability", [{ fixture_id: fixtureId, player_id: playerId, status }]);
+export async function saveAvailability(date, playerId, status) {
+  await upsertRows("availability", [{ date, player_id: playerId, status }]);
 }
 
 export async function saveLineup(fixtureId, lineup) {

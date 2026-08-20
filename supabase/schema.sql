@@ -15,15 +15,42 @@ create table if not exists public.fixtures (
   venue text not null,
   competition text not null,
   status text not null default 'upcoming',
-  opp_pos integer not null default 6
+  opp_pos integer not null default 6,
+  scraped_at timestamptz
 );
 
+-- Nullable and left unset by manual fixture adds — only the scraper stamps it, on every
+-- run (upsert doesn't touch untouched rows, so a plain default wouldn't advance on update).
+alter table public.fixtures add column if not exists scraped_at timestamptz;
+
 create table if not exists public.availability (
-  fixture_id text not null references public.fixtures(id) on delete cascade,
+  date date not null,
   player_id text not null references public.players(id) on delete cascade,
   status text not null check (status in ('yes', 'maybe', 'no', 'unset')),
-  primary key (fixture_id, player_id)
+  primary key (date, player_id)
 );
+
+-- Migrate older installs from fixture-keyed availability to date-keyed availability, so a
+-- rescraped/rescheduled fixture (which the scraper upserts by a stable FA fixture id) never
+-- wipes out player responses via the old on-delete-cascade foreign key.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'availability' and column_name = 'fixture_id'
+  ) then
+    alter table public.availability add column if not exists date date;
+    update public.availability a
+      set date = substring(f.date from 1 for 10)::date
+      from public.fixtures f
+      where a.fixture_id = f.id and a.date is null and f.date ~ '^\d{4}-\d{2}-\d{2}';
+    delete from public.availability where date is null;
+    alter table public.availability drop constraint if exists availability_pkey;
+    alter table public.availability alter column date set not null;
+    alter table public.availability drop column fixture_id;
+    alter table public.availability add primary key (date, player_id);
+  end if;
+end $$;
 
 create table if not exists public.lineups (
   fixture_id text primary key references public.fixtures(id) on delete cascade,
