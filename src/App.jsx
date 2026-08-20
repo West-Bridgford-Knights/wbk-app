@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Users, CalendarDays, ClipboardCheck, Shirt, Trophy, TrendingUp,
   BarChart3, Star, Plus, X, RefreshCw, ChevronRight, Target, Zap,
@@ -8,6 +8,15 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   ScatterChart, Scatter, ZAxis, Cell
 } from "recharts";
+import { isSupabaseConfigured } from "./lib/supabase";
+import {
+  loadAppData,
+  saveAvailability,
+  saveFixture,
+  saveLineup,
+  savePlayer,
+  saveResult as saveResultToDatabase,
+} from "./lib/database";
 
 // ---------- Design tokens ----------
 const COLORS = {
@@ -24,85 +33,60 @@ const COLORS = {
 };
 
 // ---------- Seed data ----------
-const seedPlayers = [
-  { id: "p1", name: "Danny Hargreaves", number: 1, pos: "GK" },
-  { id: "p2", name: "Mo Iqbal", number: 2, pos: "DEF" },
-  { id: "p3", name: "Connor Reilly", number: 4, pos: "DEF" },
-  { id: "p4", name: "Sam Okafor", number: 5, pos: "DEF" },
-  { id: "p5", name: "Ben Ward", number: 3, pos: "DEF" },
-  { id: "p6", name: "Jack Tomlinson", number: 6, pos: "MID" },
-  { id: "p7", name: "Ollie Pearce", number: 8, pos: "MID" },
-  { id: "p8", name: "Ryan Sullivan", number: 10, pos: "MID" },
-  { id: "p9", name: "Kwame Boateng", number: 7, pos: "FWD" },
-  { id: "p10", name: "Liam Foster", number: 9, pos: "FWD" },
-  { id: "p11", name: "Aaron Blake", number: 11, pos: "FWD" },
-  { id: "p12", name: "Josh Newby", number: 12, pos: "MID" },
-  { id: "p13", name: "Dean Carrick", number: 14, pos: "DEF" },
+const playerNames = [
+  "Opeyemi Adeleke", "David Adeyemo", "Matthew Blaze", "Jacob Brown", "Joseph Bullock",
+  "Jack Carnell", "James Chiu", "Tom Cilvert", "Ed Cochrane", "Harry Cockerham",
+  "Mark Coulthard", "Nathan Cox", "Morgan Davies-Brown", "Peter Draper", "Harry Eggleston",
+  "Harry Fitzjohn", "Gregory Hallford", "Thomas Harrison", "Ben Hawksworth", "Daniel Hemmings",
+  "Joel Holmes", "Harman Khosa", "Andrew Kirkwood", "Nicholas Kirkwood", "Stijn Lenders",
+  "Hamish Llewelyn", "John Lowe", "Tom Marshall", "Elliott Matter", "Luke Maxted",
+  "Declan McNally", "Will Rainford", "Christopher Ryder", "Brandon Vandenhende", "Thomas Vasey",
+  "Tomoya Wada", "Matteo", "Alex", "Jack", "Aiden", "David Nice", "Ross Whiting",
 ];
+
+const seedPlayers = playerNames.map((name, index) => ({
+  id: `p${index + 1}`,
+  name,
+  number: index + 1,
+  pos: "MID",
+}));
 
 const seedFixtures = [
-  { id: "f1", opponent: "Red Lion Rovers", date: "2026-05-03", venue: "H", oppPos: 2, status: "played" },
-  { id: "f2", opponent: "The Cock & Bull FC", date: "2026-05-10", venue: "A", oppPos: 9, status: "played" },
-  { id: "f3", opponent: "Kingsway Athletic", date: "2026-05-17", venue: "H", oppPos: 4, status: "played" },
-  { id: "f4", opponent: "Miners Welfare", date: "2026-08-16", venue: "A", oppPos: 11, status: "upcoming" },
-  { id: "f5", opponent: "Old Grammarians", date: "2026-08-23", venue: "H", oppPos: 1, status: "upcoming" },
-];
+  ["L", "2026-09-06T10:30", "West Bridgford Knights F.C.", "Fanzines United A", "Gresham Sports Park #5", "One"],
+  ["L", "2026-09-13T10:30", "Shire Athletic F.C.", "West Bridgford Knights F.C.", "South Notts Academy, Radcliffe-on-Trent", "One"],
+  ["CC", "2026-09-20T10:30", "West Bridgford Knights F.C.", "Bridgford Villa FC Mens", "GRESHAM SPORTS PARK", "Sunday Senior Trophy"],
+  ["L", "TBC", "West Bridgford Knights F.C.", "Notts Lions", "Gresham Sports Park #5", "One"],
+  ["L", "2026-10-11T10:30", "Radcliffe Olympic FC", "West Bridgford Knights F.C.", "Radcliffe Olympic FC", "One"],
+  ["L", "2026-10-18T10:30", "West Bridgford Knights F.C.", "Notts. Medics F.C", "Gresham Sports Park #5", "One"],
+  ["L", "2026-10-25T10:30", "West Bridgford Knights F.C.", "Bilborough TRD FC", "Gresham Sports Park #5", "One"],
+  ["L", "2026-11-01T10:30", "Bilborough TRD FC", "West Bridgford Knights F.C.", "Harvey Hadden", "One"],
+  ["L", "2026-11-08T10:30", "West Bridgford Knights F.C.", "Legion F.C", "Gresham Sports Park #5", "One"],
+  ["L", "2026-11-15T10:30", "Fanzines United A", "West Bridgford Knights F.C.", "Elms Park, Ruddington #1", "One"],
+  ["L", "2026-11-22T10:30", "West Bridgford Knights F.C.", "Shire Athletic F.C.", "Gresham Sports Park #5", "One"],
+  ["L", "2026-11-29T10:30", "Tollerton F.C.", "West Bridgford Knights F.C.", "East Leake Leisure Centre, #1", "One"],
+  ["L", "2026-12-06T10:30", "West Bridgford Knights F.C.", "Stratford Haven F.C", "Gresham Sports Park #5", "One"],
+  ["L", "TBC", "Notts Lions", "West Bridgford Knights F.C.", "Dunkirk FC #1", "One"],
+  ["L", "2026-12-13T10:30", "West Bridgford Knights F.C.", "Tollerton F.C.", "Gresham Sports Park #5", "One"],
+  ["L", "2027-01-03T10:30", "West Bridgford Knights F.C.", "Radcliffe Olympic FC", "Gresham Sports Park #5", "One"],
+  ["L", "2027-01-17T10:30", "Legion F.C", "West Bridgford Knights F.C.", "Titchfield Park, Hucknall 2", "One"],
+  ["L", "2027-01-24T10:30", "Stratford Haven F.C", "West Bridgford Knights F.C.", "Gresham Sports Park #4", "One"],
+  ["L", "2027-02-28T10:30", "Notts. Medics F.C", "West Bridgford Knights F.C.", "Riverside Sports Centre Riverside Sports Centre 5", "One"],
+].map(([type, date, homeTeam, awayTeam, venue, competition], index) => ({
+  id: `f${index + 1}`,
+  type,
+  date,
+  homeTeam,
+  awayTeam,
+  opponent: homeTeam.startsWith("West Bridgford") ? awayTeam : homeTeam,
+  venue,
+  competition,
+  status: "upcoming",
+  oppPos: 6,
+}));
 
-const seedResults = {
-  f1: {
-    ourScore: 2, theirScore: 2,
-    stats: {
-      p1: { min: 90, g: 0, a: 0, r: 3.5 }, p2: { min: 90, g: 0, a: 1, r: 3.5 },
-      p3: { min: 90, g: 0, a: 0, r: 3 }, p4: { min: 90, g: 0, a: 0, r: 3.5 },
-      p5: { min: 90, g: 0, a: 0, r: 3 }, p6: { min: 90, g: 0, a: 0, r: 4 },
-      p7: { min: 90, g: 1, a: 0, r: 4.5 }, p8: { min: 75, g: 0, a: 1, r: 4 },
-      p9: { min: 90, g: 1, a: 0, r: 4.5 }, p10: { min: 90, g: 0, a: 1, r: 3.5 },
-      p11: { min: 60, g: 0, a: 0, r: 3 },
-    },
-  },
-  f2: {
-    ourScore: 4, theirScore: 0,
-    stats: {
-      p1: { min: 90, g: 0, a: 0, r: 3 }, p2: { min: 90, g: 0, a: 0, r: 3 },
-      p3: { min: 90, g: 1, a: 0, r: 4 }, p4: { min: 90, g: 0, a: 0, r: 3 },
-      p5: { min: 90, g: 0, a: 1, r: 3.5 }, p6: { min: 90, g: 0, a: 1, r: 3.5 },
-      p7: { min: 90, g: 0, a: 2, r: 4 }, p8: { min: 90, g: 1, a: 0, r: 4 },
-      p9: { min: 90, g: 2, a: 0, r: 5 }, p10: { min: 90, g: 0, a: 1, r: 3.5 },
-      p11: { min: 90, g: 0, a: 0, r: 3 },
-    },
-  },
-  f3: {
-    ourScore: 1, theirScore: 3,
-    stats: {
-      p1: { min: 90, g: 0, a: 0, r: 2.5 }, p2: { min: 90, g: 0, a: 0, r: 2.5 },
-      p3: { min: 90, g: 0, a: 0, r: 2 }, p4: { min: 90, g: 0, a: 0, r: 2.5 },
-      p5: { min: 90, g: 0, a: 0, r: 2.5 }, p6: { min: 90, g: 0, a: 0, r: 3 },
-      p7: { min: 80, g: 1, a: 0, r: 3.5 }, p8: { min: 90, g: 0, a: 0, r: 3 },
-      p9: { min: 90, g: 0, a: 1, r: 3 }, p10: { min: 90, g: 0, a: 0, r: 2.5 },
-      p11: { min: 45, g: 0, a: 0, r: 2.5 },
-    },
-  },
-};
+const seedResults = {};
 
-const seedAvailability = {
-  f4: { p1: "yes", p2: "yes", p3: "no", p4: "yes", p5: "yes", p6: "yes", p7: "maybe", p8: "yes", p9: "yes", p10: "no", p11: "yes" },
-  f5: { p1: "yes", p2: "yes", p3: "yes", p4: "yes", p5: "maybe" },
-};
-
-const seedLeagueTable = [
-  { team: "Old Grammarians", p: 18, w: 15, d: 2, l: 1, gf: 48, ga: 14, form: "WWWDW" },
-  { team: "Red Lion Rovers", p: 18, w: 13, d: 3, l: 2, gf: 41, ga: 19, form: "WDWWL" },
-  { team: "Beechfield United", p: 18, w: 11, d: 4, l: 3, gf: 39, ga: 22, form: "WLWWD" },
-  { team: "Kingsway Athletic", p: 18, w: 10, d: 5, l: 3, gf: 35, ga: 24, form: "DWWLW" },
-  { team: "West Bridgford Knights", p: 18, w: 9, d: 4, l: 5, gf: 33, ga: 27, form: "WDLWW" },
-  { team: "Hillside Wanderers", p: 18, w: 8, d: 5, l: 5, gf: 30, ga: 28, form: "LWDWL" },
-  { team: "St. Cuthbert's Old Boys", p: 18, w: 7, d: 4, l: 7, gf: 28, ga: 30, form: "LDWLD" },
-  { team: "Foundry Rangers", p: 18, w: 6, d: 5, l: 7, gf: 25, ga: 31, form: "DLLWD" },
-  { team: "The Cock & Bull FC", p: 18, w: 5, d: 3, l: 10, gf: 20, ga: 38, form: "LLDLW" },
-  { team: "Miners Welfare", p: 18, w: 4, d: 4, l: 10, gf: 19, ga: 40, form: "LLWLD" },
-  { team: "Quarrymen AFC", p: 18, w: 3, d: 3, l: 12, gf: 16, ga: 44, form: "LLLDL" },
-  { team: "Cross Keys Casuals", p: 18, w: 2, d: 2, l: 14, gf: 12, ga: 50, form: "LLLLD" },
-];
+const seedAvailability = {};
 
 const FORMATION = [
   { key: "GK", label: "GK", top: 90, left: 50 },
@@ -118,7 +102,14 @@ const FORMATION = [
   { key: "RW", label: "RW", top: 20, left: 85 },
 ];
 
-const TOTAL_TEAMS = seedLeagueTable.length + 1; // + our own varying position, approx
+const TOTAL_TEAMS = 12;
+
+function formatFixtureDate(value) {
+  if (value === "TBC") return value;
+  return new Date(value).toLocaleString("en-GB", {
+    day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit",
+  });
+}
 
 function difficultyFromPos(oppPos, totalTeams = TOTAL_TEAMS) {
   const d = ((totalTeams - oppPos + 1) / totalTeams) * 5;
@@ -244,18 +235,52 @@ function Panel({ children, style, className = "" }) {
 export default function App() {
   const [players, setPlayers] = useState(seedPlayers);
   const [fixtures, setFixtures] = useState(seedFixtures);
-  const [results, setResults] = useState(seedResults);
+  const [results, setResults] = useState({});
   const [availability, setAvailability] = useState(seedAvailability);
   const [lineups, setLineups] = useState({});
-  const [leagueTable, setLeagueTable] = useState(seedLeagueTable);
+  const [dataReady, setDataReady] = useState(false);
+  const [dataError, setDataError] = useState("");
   const [tab, setTab] = useState("dashboard");
   const [role, setRole] = useState("manager"); // manager | player
-  const [activePlayerId, setActivePlayerId] = useState("p9");
-  const [scraping, setScraping] = useState(false);
+  const [activePlayerId, setActivePlayerId] = useState("p1");
   const [newPlayerName, setNewPlayerName] = useState("");
-  const [fixtureForm, setFixtureForm] = useState({ opponent: "", date: "", venue: "H", oppPos: 5 });
+  const [fixtureForm, setFixtureForm] = useState({ opponent: "", date: "", venue: "H", competition: "One" });
   const [resultFixtureId, setResultFixtureId] = useState(null);
   const [lineupFixtureId, setLineupFixtureId] = useState(fixtures.find(f => f.status === "upcoming")?.id || null);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    loadAppData(seedPlayers, seedFixtures)
+      .then(data => {
+        setPlayers(data.players);
+        setFixtures(data.fixtures);
+        setAvailability(data.availability);
+        setLineups(data.lineups);
+        setResults(data.results);
+        setLineupFixtureId(data.fixtures.find(f => f.status === "upcoming")?.id || null);
+        setDataReady(true);
+      })
+      .catch(error => setDataError(error.message || "Unable to load data from Supabase."));
+  }, []);
+
+  function reportSaveError(error) {
+    setDataError(error.message || "Unable to save changes to Supabase.");
+  }
+
+  if (!isSupabaseConfigured || dataError || !dataReady) {
+    return (
+      <div style={{ background: COLORS.bg, minHeight: "100vh", color: COLORS.chalk }} className="p-6 md:p-12">
+        <div style={{ maxWidth: 620, background: COLORS.panel, border: `1px solid ${COLORS.line}` }} className="rounded-xl p-6">
+          <SectionHeading eyebrow="Supabase connection" title={dataError ? "Connection error" : isSupabaseConfigured ? "Loading team data" : "Setup required"} />
+          <p style={{ color: COLORS.chalkDim }} className="text-sm leading-relaxed">
+            {dataError || (isSupabaseConfigured
+              ? "Loading players, fixtures and availability from Supabase..."
+              : "Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to a local .env file, then run the SQL in supabase/schema.sql in your Supabase SQL Editor.")}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const upcoming = fixtures.filter(f => f.status === "upcoming").sort((a,b)=>a.date.localeCompare(b.date));
   const played = fixtures.filter(f => f.status === "played").sort((a,b)=>b.date.localeCompare(a.date));
@@ -293,83 +318,66 @@ export default function App() {
   const topScorers = [...analysis].filter(a=>a.goals>0).sort((a,b)=>b.goals-a.goals);
   const topAssists = [...analysis].filter(a=>a.assists>0).sort((a,b)=>b.assists-a.assists);
 
-  const ourTeam = leagueTable.find(t => t.team.startsWith("West Bridgford"));
-  const ourPos = leagueTable
-    .slice()
-    .sort((a,b)=> (b.w*3+b.d) - (a.w*3+a.d) || (b.gf-b.ga)-(a.gf-a.ga))
-    .findIndex(t => t.team.startsWith("West Bridgford")) + 1;
-
-  const sortedTable = [...leagueTable].sort((a, b) => {
-    const ptsA = a.w*3+a.d, ptsB = b.w*3+b.d;
-    if (ptsB !== ptsA) return ptsB - ptsA;
-    return (b.gf-b.ga) - (a.gf-a.ga);
-  });
-
-  const formSorted = [...leagueTable].map(t => {
-    const pts = [...t.form].reduce((s,c)=> s + (c==="W"?3:c==="D"?1:0), 0);
-    return { ...t, formPts: pts };
-  }).sort((a,b)=>b.formPts-a.formPts);
-
-  function refreshScrape() {
-    setScraping(true);
-    setTimeout(() => {
-      setLeagueTable(prev => prev.map(t => {
-        const jitterGf = Math.max(0, t.gf + (Math.random() > 0.5 ? 1 : 0));
-        const jitterGa = Math.max(0, t.ga + (Math.random() > 0.6 ? 1 : 0));
-        return { ...t, gf: jitterGf, ga: jitterGa };
-      }));
-      setScraping(false);
-    }, 900);
-  }
-
   function addPlayer() {
     if (!newPlayerName.trim()) return;
     const nextNum = Math.max(0, ...players.map(p => p.number)) + 1;
-    setPlayers(prev => [...prev, { id: "p" + Date.now(), name: newPlayerName.trim(), number: nextNum, pos: "MID" }]);
+    const player = { id: "p" + Date.now(), name: newPlayerName.trim(), number: nextNum, pos: "MID" };
+    setPlayers(prev => [...prev, player]);
+    void savePlayer(player).catch(reportSaveError);
     setNewPlayerName("");
   }
 
   function addFixture() {
     if (!fixtureForm.opponent.trim() || !fixtureForm.date) return;
-    setFixtures(prev => [...prev, {
+    const isHome = fixtureForm.venue === "H";
+    const fixture = {
       id: "f" + Date.now(),
+      type: "L",
+      homeTeam: isHome ? "West Bridgford Knights F.C." : fixtureForm.opponent.trim(),
+      awayTeam: isHome ? fixtureForm.opponent.trim() : "West Bridgford Knights F.C.",
       opponent: fixtureForm.opponent.trim(),
       date: fixtureForm.date,
-      venue: fixtureForm.venue,
-      oppPos: Number(fixtureForm.oppPos),
+      venue: isHome ? "Home" : "Away",
+      competition: fixtureForm.competition.trim() || "One",
       status: "upcoming",
-    }]);
-    setFixtureForm({ opponent: "", date: "", venue: "H", oppPos: 5 });
+      oppPos: 6,
+    };
+    setFixtures(prev => [...prev, fixture]);
+    void saveFixture(fixture).catch(reportSaveError);
+    setFixtureForm({ opponent: "", date: "", venue: "H", competition: "One" });
   }
 
   function setAvail(fixtureId, playerId, val) {
-    setAvailability(prev => ({ ...prev, [fixtureId]: { ...(prev[fixtureId]||{}), [playerId]: val } }));
+    const next = { ...availability, [fixtureId]: { ...(availability[fixtureId] || {}), [playerId]: val } };
+    setAvailability(next);
+    void saveAvailability(fixtureId, playerId, val).catch(reportSaveError);
   }
 
   function assignSlot(fixtureId, slotKey, playerId) {
-    setLineups(prev => {
-      const current = prev[fixtureId] || { starters: {}, subs: [] };
-      const starters = { ...current.starters };
-      // remove player from any other slot first
-      Object.keys(starters).forEach(k => { if (starters[k] === playerId) delete starters[k]; });
-      if (playerId) starters[slotKey] = playerId; else delete starters[slotKey];
-      return { ...prev, [fixtureId]: { ...current, starters } };
-    });
+    const current = lineups[fixtureId] || { starters: {}, subs: [] };
+    const starters = { ...current.starters };
+    Object.keys(starters).forEach(k => { if (starters[k] === playerId) delete starters[k]; });
+    if (playerId) starters[slotKey] = playerId; else delete starters[slotKey];
+    const lineup = { ...current, starters };
+    setLineups(prev => ({ ...prev, [fixtureId]: lineup }));
+    void saveLineup(fixtureId, lineup).catch(reportSaveError);
   }
 
   function toggleSub(fixtureId, playerId) {
-    setLineups(prev => {
-      const current = prev[fixtureId] || { starters: {}, subs: [] };
-      const subs = current.subs.includes(playerId)
-        ? current.subs.filter(id => id !== playerId)
-        : [...current.subs, playerId];
-      return { ...prev, [fixtureId]: { ...current, subs } };
-    });
+    const current = lineups[fixtureId] || { starters: {}, subs: [] };
+    const subs = current.subs.includes(playerId)
+      ? current.subs.filter(id => id !== playerId)
+      : [...current.subs, playerId];
+    const lineup = { ...current, subs };
+    setLineups(prev => ({ ...prev, [fixtureId]: lineup }));
+    void saveLineup(fixtureId, lineup).catch(reportSaveError);
   }
 
   function saveResult(fixtureId, ourScore, theirScore, statsDraft) {
-    setResults(prev => ({ ...prev, [fixtureId]: { ourScore, theirScore, stats: statsDraft } }));
+    const result = { ourScore, theirScore, stats: statsDraft };
+    setResults(prev => ({ ...prev, [fixtureId]: result }));
     setFixtures(prev => prev.map(f => f.id === fixtureId ? { ...f, status: "played" } : f));
+    void saveResultToDatabase(fixtureId, result).catch(reportSaveError);
     setResultFixtureId(null);
   }
 
@@ -380,8 +388,6 @@ export default function App() {
     { key: "availability", label: "Availability", icon: ClipboardCheck },
     { key: "lineups", label: "Lineups", icon: Shirt },
     { key: "results", label: "Results & Ratings", icon: Target },
-    { key: "table", label: "League Table", icon: Trophy },
-    { key: "form", label: "Form Table", icon: TrendingUp },
     { key: "analysis", label: "Analysis", icon: BarChart3 },
   ];
 
@@ -440,7 +446,7 @@ export default function App() {
                 <Info size={12} /> Prototype build
               </div>
               <div style={{ color: COLORS.chalkDim }} className="mt-1 leading-relaxed">
-                League table &amp; scrape are simulated for this demo.
+                Fixtures and availability are saved in this browser.
               </div>
             </div>
           </div>
@@ -486,8 +492,8 @@ export default function App() {
           <div className="p-4 md:p-8 max-w-6xl">
             {tab === "dashboard" && (
               <Dashboard
-                upcoming={upcoming} played={played} results={results} ourPos={ourPos}
-                totalTeams={sortedTable.length} topScorers={topScorers} setTab={setTab}
+                upcoming={upcoming} played={played} results={results}
+                topScorers={topScorers} setTab={setTab}
               />
             )}
 
@@ -528,12 +534,6 @@ export default function App() {
               />
             )}
 
-            {tab === "table" && (
-              <LeagueTableTab sortedTable={sortedTable} refreshScrape={refreshScrape} scraping={scraping} />
-            )}
-
-            {tab === "form" && <FormTab formSorted={formSorted} />}
-
             {tab === "analysis" && (
               <AnalysisTab analysis={analysis} rankedForSelection={rankedForSelection} topScorers={topScorers} topAssists={topAssists} />
             )}
@@ -545,7 +545,7 @@ export default function App() {
 }
 
 // ---------- Dashboard ----------
-function Dashboard({ upcoming, played, results, ourPos, totalTeams, topScorers, setTab }) {
+function Dashboard({ upcoming, played, results, topScorers, setTab }) {
   const next = upcoming[0];
   const last = played[0];
   const lastResult = last ? results[last.id] : null;
@@ -554,17 +554,15 @@ function Dashboard({ upcoming, played, results, ourPos, totalTeams, topScorers, 
       <SectionHeading eyebrow="Matchday HQ" title="Dashboard" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Panel>
-          <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-2">League Position</div>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", color: COLORS.gold }} className="text-4xl">
-            {ourPos}<span style={{ color: COLORS.chalkDim }} className="text-lg">/{totalTeams}</span>
-          </div>
+          <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-2">Scheduled fixtures</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", color: COLORS.gold }} className="text-4xl">{upcoming.length}</div>
         </Panel>
         <Panel>
           <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-2">Next Fixture</div>
           {next ? (
             <>
               <div className="text-lg font-semibold">{next.opponent}</div>
-              <div style={{ color: COLORS.chalkDim }} className="text-xs mt-1">{next.date} · {next.venue === "H" ? "Home" : "Away"}</div>
+              <div style={{ color: COLORS.chalkDim }} className="text-xs mt-1">{formatFixtureDate(next.date)} · {next.venue}</div>
             </>
           ) : <div style={{ color: COLORS.chalkDim }} className="text-sm">None scheduled</div>}
         </Panel>
@@ -652,7 +650,7 @@ function SquadTab({ players, analysis, newPlayerName, setNewPlayerName, addPlaye
 
 // ---------- Fixtures ----------
 function FixturesTab({ fixtures, fixtureForm, setFixtureForm, addFixture, role }) {
-  const sorted = [...fixtures].sort((a,b)=>a.date.localeCompare(b.date));
+  const sorted = [...fixtures].sort((a,b)=>a.date === "TBC" ? 1 : b.date === "TBC" ? -1 : a.date.localeCompare(b.date));
   return (
     <div>
       <SectionHeading eyebrow="Season schedule" title="Fixtures" />
@@ -673,8 +671,8 @@ function FixturesTab({ fixtures, fixtureForm, setFixtureForm, addFixture, role }
               className="text-sm px-2.5 py-2 rounded-md">
               <option value="H">Home</option><option value="A">Away</option>
             </select>
-            <input type="number" min="1" max="12" placeholder="Opp. league pos" value={fixtureForm.oppPos}
-              onChange={e => setFixtureForm(f => ({ ...f, oppPos: e.target.value }))}
+            <input placeholder="Competition" value={fixtureForm.competition}
+              onChange={e => setFixtureForm(f => ({ ...f, competition: e.target.value }))}
               style={{ background: COLORS.panel2, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
               className="text-sm px-2.5 py-2 rounded-md" />
           </div>
@@ -685,16 +683,13 @@ function FixturesTab({ fixtures, fixtureForm, setFixtureForm, addFixture, role }
       )}
       <div className="flex flex-col gap-2">
         {sorted.map(f => {
-          const diff = difficultyFromPos(f.oppPos);
-          const dl = difficultyLabel(diff);
           return (
             <Panel key={f.id} className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <div className="text-sm font-semibold">{f.opponent}</div>
-                <div style={{ color: COLORS.chalkDim }} className="text-xs mt-0.5">{f.date} · {f.venue === "H" ? "Home" : "Away"} · Opponent pos #{f.oppPos}</div>
+                <div className="text-sm font-semibold">{f.homeTeam} <span style={{ color: COLORS.chalkDim }}>vs</span> {f.awayTeam}</div>
+                <div style={{ color: COLORS.chalkDim }} className="text-xs mt-0.5">{formatFixtureDate(f.date)} · {f.venue} · {f.competition} · {f.type}</div>
               </div>
               <div className="flex items-center gap-2">
-                <Badge color={dl.color}>{dl.text} · {diff}/5</Badge>
                 <Badge subtle color={f.status === "played" ? COLORS.sky : COLORS.chalkDim}>{f.status}</Badge>
               </div>
             </Panel>
@@ -716,8 +711,8 @@ function AvailabilityTab({ fixtures, players, availability, setAvail, role, acti
         {fixtures.map(f => (
           <Panel key={f.id}>
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <div className="text-sm font-semibold">{f.opponent} <span style={{ color: COLORS.chalkDim, fontWeight: 400 }}>· {f.date}</span></div>
-              <Badge subtle color={COLORS.sky}>{f.venue === "H" ? "Home" : "Away"}</Badge>
+              <div className="text-sm font-semibold">{f.opponent} <span style={{ color: COLORS.chalkDim, fontWeight: 400 }}>· {formatFixtureDate(f.date)}</span></div>
+              <Badge subtle color={COLORS.sky}>{f.homeTeam.startsWith("West Bridgford") ? "Home" : "Away"}</Badge>
             </div>
             <div className="flex flex-col gap-1.5">
               {relevantPlayers.map(p => {

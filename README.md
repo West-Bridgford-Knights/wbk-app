@@ -1,7 +1,7 @@
 # West Bridgford Knights — Team App
 
-A Vite + React + Tailwind app for squad availability, lineups, results, ratings,
-league table and analysis. Ships as a static site — free to host on GitHub Pages.
+A Vite + React + Tailwind app for squad availability, fixtures, lineups, results,
+ratings and analysis. Ships as a static site — free to host on GitHub Pages.
 
 ## Run locally
 
@@ -9,6 +9,24 @@ league table and analysis. Ships as a static site — free to host on GitHub Pag
 npm install
 npm run dev
 ```
+
+## Supabase setup
+
+1. Create a Supabase project at [supabase.com](https://supabase.com/).
+2. Open **SQL Editor**, paste the contents of `supabase/schema.sql`, and run it.
+3. Copy `.env.example` to `.env.local` and fill in the project's URL and anon key
+   from **Project Settings -> API**.
+4. Restart `npm run dev`. The app will seed the supplied players and fixtures into
+   Supabase the first time the tables are empty.
+
+For GitHub Pages, add repository secrets under **Settings -> Secrets and variables
+-> Actions** with the names `SUPABASE_URL` and `SUPABASE_ANON_KEY`. The deployment
+workflow maps those secrets to Vite's `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY` variables during the build.
+
+The anon key is intended for browser use. The SQL policies currently allow anyone
+with the app URL to read and write this single-team dataset. Add Supabase Auth and
+team-scoped row-level security before using this publicly with sensitive data.
 
 ## Deploy to GitHub Pages (automatic)
 
@@ -23,9 +41,5 @@ under any repo name or sub-path automatically.
 
 ## Notes
 
-- This is a front-end-only prototype: all data (players, fixtures, results,
-  availability, league table) lives in memory and resets on page reload. There's
-  no login, database, or scraper yet — see the in-app note on the League Table tab.
-- Next step for a "real" version with persistent data and real accounts: add
-  Supabase (auth + database) and a scheduled scraper function, then point this
-  same frontend at it.
+- Players, fixtures, results, lineups and availability are stored in Supabase.
+- The app no longer reads or writes browser local storage.
