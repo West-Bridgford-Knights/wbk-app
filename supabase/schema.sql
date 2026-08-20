@@ -47,6 +47,17 @@ alter table public.availability enable row level security;
 alter table public.lineups enable row level security;
 alter table public.results enable row level security;
 
+drop policy if exists "Public team app can read players" on public.players;
+drop policy if exists "Public team app can write players" on public.players;
+drop policy if exists "Public team app can read fixtures" on public.fixtures;
+drop policy if exists "Public team app can write fixtures" on public.fixtures;
+drop policy if exists "Public team app can read availability" on public.availability;
+drop policy if exists "Public team app can write availability" on public.availability;
+drop policy if exists "Public team app can read lineups" on public.lineups;
+drop policy if exists "Public team app can write lineups" on public.lineups;
+drop policy if exists "Public team app can read results" on public.results;
+drop policy if exists "Public team app can write results" on public.results;
+
 create policy "Public team app can read players" on public.players for select to anon, authenticated using (true);
 create policy "Public team app can write players" on public.players for all to anon, authenticated using (true) with check (true);
 create policy "Public team app can read fixtures" on public.fixtures for select to anon, authenticated using (true);
