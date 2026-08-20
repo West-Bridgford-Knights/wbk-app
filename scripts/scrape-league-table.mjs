@@ -1,5 +1,9 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 import * as cheerio from "cheerio";
+
+const execFileAsync = promisify(execFile);
 
 const LEAGUE_TABLE_URL =
   "https://fulltime.thefa.com/table.html?league=2581263&selectedSeason=800979694&selectedDivision=53676971&selectedCompetition=0&selectedFixtureGroupKey=1_878472488";
@@ -13,18 +17,25 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 }
 
 async function fetchLeagueTableHtml() {
-  const response = await fetch(LEAGUE_TABLE_URL, {
-    headers: {
-      // FA Full-Time sits behind Cloudflare and blocks requests without a browser-like UA.
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Accept-Language": "en-GB,en;q=0.9",
-    },
-  });
-  if (!response.ok) {
-    throw new Error(`FA Full-Time request failed: ${response.status} ${response.statusText}`);
-  }
-  return response.text();
+  // FA Full-Time sits behind Cloudflare, which blocks Node's fetch() (undici) on
+  // TLS/HTTP client fingerprint alone — a plain curl request with the same headers
+  // passes, so shell out to curl rather than using fetch().
+  const { stdout } = await execFileAsync(
+    "curl",
+    [
+      "--silent",
+      "--show-error",
+      "--fail",
+      "--location",
+      "--user-agent",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "--header",
+      "Accept-Language: en-GB,en;q=0.9",
+      LEAGUE_TABLE_URL,
+    ],
+    { maxBuffer: 20 * 1024 * 1024 }
+  );
+  return stdout;
 }
 
 function parseLeagueTable(html) {
