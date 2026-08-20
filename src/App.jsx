@@ -185,8 +185,9 @@ export default function App() {
   const [dataReady, setDataReady] = useState(false);
   const [dataError, setDataError] = useState("");
   const [tab, setTab] = useState("dashboard");
-  const [role, setRole] = useState("manager"); // manager | player
+  const [role, setRole] = useState("player"); // manager | player
   const [activePlayerId, setActivePlayerId] = useState("p1");
+  const [managerUnlockClicks, setManagerUnlockClicks] = useState(0);
   const [newPlayerName, setNewPlayerName] = useState("");
   const [fixtureForm, setFixtureForm] = useState({ opponent: "", date: "", venue: "H", competition: "One" });
   const [resultFixtureId, setResultFixtureId] = useState(null);
@@ -209,6 +210,16 @@ export default function App() {
 
   function reportSaveError(error) {
     setDataError(error.message || "Unable to save changes to Supabase.");
+  }
+
+  function handlePlayerAccountClick() {
+    const nextClickCount = managerUnlockClicks + 1;
+    if (nextClickCount >= 5) {
+      setRole("manager");
+      setManagerUnlockClicks(0);
+      return;
+    }
+    setManagerUnlockClicks(nextClickCount);
   }
 
   const upcoming = fixtures.filter(f => f.status === "upcoming").sort((a,b)=>a.date.localeCompare(b.date));
@@ -410,16 +421,16 @@ export default function App() {
               </div>
             </div>
             <div className="flex items-center gap-2 ml-auto">
-              <LogIn size={14} color={COLORS.chalkDim} />
-              <select
-                value={role}
-                onChange={e => setRole(e.target.value)}
-                style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
-                className="text-xs rounded-md px-2 py-1.5"
+              <button
+                type="button"
+                onClick={handlePlayerAccountClick}
+                aria-label="Player account"
+                title="Player account"
+                style={{ color: COLORS.chalkDim }}
+                className="text-xs flex items-center gap-1.5"
               >
-                <option value="manager">Manager account</option>
-                <option value="player">Player account</option>
-              </select>
+                <LogIn size={14} /> Player account
+              </button>
               {role === "player" && (
                 <select
                   value={activePlayerId}
