@@ -28,8 +28,11 @@ create table if not exists public.availability (
 create table if not exists public.lineups (
   fixture_id text primary key references public.fixtures(id) on delete cascade,
   starters jsonb not null default '{}'::jsonb,
-  subs jsonb not null default '[]'::jsonb
+  subs jsonb not null default '[]'::jsonb,
+  captain_id text references public.players(id) on delete set null
 );
+
+alter table public.lineups add column if not exists captain_id text references public.players(id) on delete set null;
 
 create table if not exists public.results (
   fixture_id text primary key references public.fixtures(id) on delete cascade,

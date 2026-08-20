@@ -68,7 +68,7 @@ export async function loadAppData() {
     }), {}),
     lineups: lineupRows.reduce((all, row) => ({
       ...all,
-      [row.fixture_id]: { starters: row.starters || {}, subs: row.subs || [] },
+      [row.fixture_id]: { starters: row.starters || {}, subs: row.subs || [], captain: row.captain_id || null },
     }), {}),
     results: resultRows.reduce((all, row) => ({
       ...all,
@@ -94,6 +94,7 @@ export async function saveLineup(fixtureId, lineup) {
     fixture_id: fixtureId,
     starters: lineup.starters || {},
     subs: lineup.subs || [],
+    captain_id: lineup.captain || null,
   }]);
 }
 

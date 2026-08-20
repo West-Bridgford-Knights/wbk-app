@@ -175,86 +175,129 @@ function Panel({ children, style, className = "" }) {
   );
 }
 
-function downloadSquadPng(fixture, players) {
+function downloadSquadPng(fixture, players, captainId) {
   const canvas = document.createElement("canvas");
   canvas.width = 800;
-  canvas.height = 800;
+  canvas.height = 1100;
   const context = canvas.getContext("2d");
   const navy = "#151A3A";
-  const gold = "#B6A06A";
+  const gold = COLORS.gold;
   const chalk = "#F5F3EE";
   const muted = "#C6C9D8";
   const sortedPlayers = [...players].sort((a, b) => a.number - b.number);
-  const columns = [sortedPlayers.slice(0, Math.ceil(sortedPlayers.length / 2)), sortedPlayers.slice(Math.ceil(sortedPlayers.length / 2))];
+  const captain = sortedPlayers.find(player => player.id === captainId);
 
   context.fillStyle = navy;
-  context.fillRect(0, 0, 800, 800);
+  context.fillRect(0, 0, 800, 1100);
 
-  const sky = context.createLinearGradient(0, 0, 0, 800);
-  sky.addColorStop(0, "#20264D");
-  sky.addColorStop(0.6, "#171C3D");
-  sky.addColorStop(1, "#0E1230");
+  const sky = context.createLinearGradient(0, 0, 800, 1100);
+  sky.addColorStop(0, "#29324B");
+  sky.addColorStop(0.45, "#19213E");
+  sky.addColorStop(1, "#0C1230");
   context.fillStyle = sky;
-  context.fillRect(40, 0, 680, 800);
+  context.fillRect(0, 0, 800, 1100);
 
+  // Abstract stadium lights and fabric folds create the supplied poster's atmosphere.
   context.save();
-  context.globalAlpha = 0.18;
-  context.strokeStyle = "#D8DBE8";
-  context.lineWidth = 2;
-  for (let x = 75; x < 740; x += 34) {
+  context.globalAlpha = 0.13;
+  context.strokeStyle = "#E6E8F2";
+  context.lineWidth = 3;
+  for (let x = -100; x < 900; x += 110) {
     context.beginPath();
-    context.moveTo(x, 155);
-    context.lineTo(400, 690);
+    context.moveTo(x, 80);
+    context.quadraticCurveTo(x + 25, 520, x - 60, 1100);
     context.stroke();
   }
-  for (let y = 180; y < 650; y += 42) {
+  context.globalAlpha = 0.2;
+  context.fillStyle = "#D9DEED";
+  [110, 250, 390].forEach(y => {
     context.beginPath();
-    context.moveTo(60, y);
-    context.quadraticCurveTo(400, y - 35, 740, y);
+    context.arc(110, y, 18, 0, Math.PI * 2);
+    context.arc(690, y + 25, 18, 0, Math.PI * 2);
+    context.fill();
+  });
+  context.globalAlpha = 0.14;
+  context.strokeStyle = gold;
+  context.lineWidth = 2;
+  for (let y = 580; y < 1060; y += 52) {
+    context.beginPath();
+    context.moveTo(0, y);
+    context.quadraticCurveTo(400, y - 70, 800, y);
     context.stroke();
   }
   context.restore();
 
   context.fillStyle = gold;
-  context.fillRect(0, 0, 40, 800);
-  context.fillRect(720, 0, 80, 800);
-  for (let y = 0; y < 800; y += 130) {
+  context.fillRect(0, 0, 34, 1100);
+  context.fillRect(766, 0, 34, 1100);
+  for (let y = 18; y < 1100; y += 150) {
     context.fillStyle = navy;
-    context.fillRect(0, y + 70, 40, 42);
-    context.fillRect(720, y + 18, 80, 42);
+    context.fillRect(0, y, 34, 52);
+    context.fillRect(766, y + 62, 34, 52);
   }
 
-  context.textAlign = "center";
+  context.textAlign = "left";
+  context.fillStyle = gold;
+  context.font = "bold 22px Arial, sans-serif";
+  context.fillText(`${fixture.opponent.toUpperCase()}  |  ${formatFixtureDate(fixture.date)}`, 72, 62);
   context.fillStyle = chalk;
-  context.font = "bold 58px Impact, sans-serif";
-  context.fillText("MATCH DAY SQUAD", 400, 118);
+  context.font = "bold 112px Impact, sans-serif";
+  context.fillText("SQUAD", 70, 178);
 
+  context.textAlign = "right";
   context.fillStyle = muted;
   context.font = "bold 18px Arial, sans-serif";
-  context.fillText(`${fixture.homeTeam}  VS  ${fixture.awayTeam}`, 400, 155);
-  context.font = "bold 15px Arial, sans-serif";
-  context.fillText(`${formatFixtureDate(fixture.date)}  |  ${fixture.venue}  |  ${fixture.competition}`, 400, 180);
+  context.fillText(`${fixture.homeTeam}  VS  ${fixture.awayTeam}`, 722, 94);
+  context.font = "bold 16px Arial, sans-serif";
+  context.fillText(`${fixture.venue}  |  ${fixture.competition === "One" ? "" : fixture.competition}`, 722, 124);
 
   context.textAlign = "left";
-
-  columns.forEach((column, columnIndex) => {
-    const x = columnIndex === 0 ? 88 : 440;
-    column.forEach((player, index) => {
-      const y = 270 + index * 43;
-      context.fillStyle = chalk;
-      context.font = "bold 20px Arial, sans-serif";
-      context.fillText(`${player.number}.`, x, y);
-      context.font = "bold 20px Arial, sans-serif";
-      context.fillText(player.name.toUpperCase(), x + 48, y);
-    });
+  sortedPlayers.forEach((player, index) => {
+    const y = 252 + index * Math.min(42, 740 / Math.max(sortedPlayers.length, 1));
+    context.fillStyle = gold;
+    context.font = "bold 25px Arial, sans-serif";
+    context.fillText(`${player.number}.`, 84, y);
+    context.fillStyle = chalk;
+    context.font = "bold 25px Arial, sans-serif";
+    context.fillText(player.name.toUpperCase(), 142, y);
+    if (player.id === captainId) {
+      context.fillStyle = gold;
+      context.font = "bold 15px Arial, sans-serif";
+      context.fillText("C", 690, y);
+    }
   });
 
-  context.textAlign = "center";
-  context.fillStyle = muted;
-  context.font = "14px Arial, sans-serif";
-  context.fillText("WEST BRIDGFORD KNIGHTS F.C.", 400, 750);
   context.fillStyle = gold;
-  context.fillRect(260, 764, 280, 2);
+  context.fillRect(72, 930, 650, 2);
+  context.fillStyle = gold;
+  context.font = "bold 18px Arial, sans-serif";
+  context.fillText("MANAGER", 72, 972);
+  context.fillStyle = chalk;
+  context.font = "bold 27px Arial, sans-serif";
+  context.fillText("LUKE MAXTED", 72, 1012);
+  context.fillStyle = muted;
+  context.font = "15px Arial, sans-serif";
+  context.fillText(captain ? `CAPTAIN  ${captain.name.toUpperCase()}` : "CAPTAIN  NOT SELECTED", 72, 1050);
+
+  // Simple club crest treatment using the same shield language as the main app.
+  context.save();
+  context.translate(650, 980);
+  context.fillStyle = gold;
+  context.beginPath();
+  context.moveTo(0, -88); context.lineTo(72, -55); context.lineTo(62, 38); context.lineTo(0, 88); context.lineTo(-62, 38); context.lineTo(-72, -55); context.closePath(); context.fill();
+  context.fillStyle = navy;
+  context.beginPath();
+  context.moveTo(0, -78); context.lineTo(62, -49); context.lineTo(53, 32); context.lineTo(0, 75); context.lineTo(-53, 32); context.lineTo(-62, -49); context.closePath(); context.fill();
+  context.fillStyle = gold;
+  context.textAlign = "center";
+  context.font = "bold 34px Arial, sans-serif";
+  context.fillText("W", 0, 12);
+  context.font = "bold 10px Arial, sans-serif";
+  context.fillText("KNIGHTS", 0, 45);
+  context.restore();
+
+  context.fillStyle = gold;
+  context.fillRect(72, 1072, 650, 2);
 
   const link = document.createElement("a");
   link.download = `match-day-squad-${fixture.id}.png`;
@@ -411,6 +454,13 @@ export default function App() {
       ? current.subs.filter(id => id !== playerId)
       : [...current.subs, playerId];
     const lineup = { ...current, subs };
+    setLineups(prev => ({ ...prev, [fixtureId]: lineup }));
+    void saveLineup(fixtureId, lineup).catch(reportSaveError);
+  }
+
+  function selectCaptain(fixtureId, playerId) {
+    const current = lineups[fixtureId] || { starters: {}, subs: [], captain: null };
+    const lineup = { ...current, captain: current.captain === playerId ? null : playerId };
     setLineups(prev => ({ ...prev, [fixtureId]: lineup }));
     void saveLineup(fixtureId, lineup).catch(reportSaveError);
   }
@@ -580,7 +630,7 @@ export default function App() {
               <LineupsTab
                 fixtures={upcoming} players={players} availability={availability}
                 lineups={lineups} lineupFixtureId={lineupFixtureId} setLineupFixtureId={setLineupFixtureId}
-                assignSlot={assignSlot} toggleSub={toggleSub} role={role}
+                assignSlot={assignSlot} toggleSub={toggleSub} selectCaptain={selectCaptain} role={role}
               />
             )}
 
@@ -803,11 +853,11 @@ function AvailabilityTab({ fixtures, players, availability, setAvail, role, acti
 }
 
 // ---------- Squads ----------
-function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId, setLineupFixtureId, assignSlot, toggleSub, role }) {
+function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId, setLineupFixtureId, assignSlot, toggleSub, selectCaptain, role }) {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const fixture = fixtures.find(f => f.id === lineupFixtureId) || fixtures[0];
-  const current = fixture ? (lineups[fixture.id] || { starters: {}, subs: [] }) : { starters: {}, subs: [] };
-  const availableIds = fixture ? players.filter(p => availability[fixture.id]?.[p.id] === "yes").map(p=>p.id) : [];
+  const current = fixture ? (lineups[fixture.id] || { starters: {}, subs: [], captain: null }) : { starters: {}, subs: [], captain: null };
+  const availableIds = fixture ? players.filter(p => availability[fixture.id]?.[p.id] === "yes").map(p => p.id) : [];
   const usedIds = new Set([...Object.values(current.starters), ...current.subs]);
 
   if (role !== "manager") return <div><SectionHeading eyebrow="Manager access" title="Matchday Squads" /><Panel><div style={{ color: COLORS.chalkDim }}>Squad selection is available to managers only.</div></Panel></div>;
@@ -835,7 +885,7 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
             <button
               type="button"
               disabled={availableIds.length === 0}
-              onClick={() => downloadSquadPng(fixture, players.filter(p => availableIds.includes(p.id)))}
+              onClick={() => downloadSquadPng(fixture, players.filter(p => availableIds.includes(p.id)), current.captain)}
               style={{ background: COLORS.gold, color: COLORS.bg, opacity: availableIds.length ? 1 : 0.5 }}
               className="text-xs font-semibold px-3 py-2 rounded-md flex items-center gap-1.5"
             >
@@ -896,12 +946,19 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
                   <button type="button" onClick={() => handlePlayerClick(p.id)} className="flex items-center gap-2 text-left hover:text-[#E9E4D4]">
                     <ShirtBadge number={p.number} size={24} /> {p.name}
                   </button>
-                  {inStart ? <Badge color={COLORS.gold}>Starting</Badge> :
+                  <div className="flex items-center gap-1.5">
+                    {inStart ? <Badge color={COLORS.gold}>Starting</Badge> :
                     <button disabled={role !== "manager"} onClick={() => toggleSub(fixture.id, p.id)}
                       style={{ background: inSub ? COLORS.sky+"33" : "transparent", border: `1px solid ${inSub ? COLORS.sky : COLORS.line}`, color: inSub ? COLORS.sky : COLORS.chalkDim }}
                       className="text-[11px] px-2 py-1 rounded-md">
                       {inSub ? "On bench" : "Add to bench"}
                     </button>}
+                    <button type="button" onClick={() => selectCaptain(fixture.id, p.id)}
+                      style={{ color: current.captain === p.id ? COLORS.gold : COLORS.chalkDim, border: `1px solid ${current.captain === p.id ? COLORS.gold : COLORS.line}` }}
+                      className="text-[10px] px-1.5 py-1 rounded-md">
+                      {current.captain === p.id ? "Captain" : "C"}
+                    </button>
+                  </div>
                 </div>
               );
             })}
