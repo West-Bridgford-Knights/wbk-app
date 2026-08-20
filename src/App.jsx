@@ -211,21 +211,6 @@ export default function App() {
     setDataError(error.message || "Unable to save changes to Supabase.");
   }
 
-  if (!isSupabaseConfigured || dataError || !dataReady) {
-    return (
-      <div style={{ background: COLORS.bg, minHeight: "100vh", color: COLORS.chalk }} className="p-6 md:p-12">
-        <div style={{ maxWidth: 620, background: COLORS.panel, border: `1px solid ${COLORS.line}` }} className="rounded-xl p-6">
-          <SectionHeading eyebrow="Supabase connection" title={dataError ? "Connection error" : isSupabaseConfigured ? "Loading team data" : "Setup required"} />
-          <p style={{ color: COLORS.chalkDim }} className="text-sm leading-relaxed">
-            {dataError || (isSupabaseConfigured
-              ? "Loading players, fixtures and availability from Supabase..."
-              : "Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to a local .env file, then run the SQL in supabase/schema.sql in your Supabase SQL Editor.")}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const upcoming = fixtures.filter(f => f.status === "upcoming").sort((a,b)=>a.date.localeCompare(b.date));
   const played = fixtures.filter(f => f.status === "played").sort((a,b)=>b.date.localeCompare(a.date));
 
@@ -261,6 +246,21 @@ export default function App() {
   const rankedForSelection = [...analysis].filter(a => a.apps > 0).sort((a,b)=>b.avgAdj - a.avgAdj);
   const topScorers = [...analysis].filter(a=>a.goals>0).sort((a,b)=>b.goals-a.goals);
   const topAssists = [...analysis].filter(a=>a.assists>0).sort((a,b)=>b.assists-a.assists);
+
+  if (!isSupabaseConfigured || dataError || !dataReady) {
+    return (
+      <div style={{ background: COLORS.bg, minHeight: "100vh", color: COLORS.chalk }} className="p-6 md:p-12">
+        <div style={{ maxWidth: 620, background: COLORS.panel, border: `1px solid ${COLORS.line}` }} className="rounded-xl p-6">
+          <SectionHeading eyebrow="Supabase connection" title={dataError ? "Connection error" : isSupabaseConfigured ? "Loading team data" : "Setup required"} />
+          <p style={{ color: COLORS.chalkDim }} className="text-sm leading-relaxed">
+            {dataError || (isSupabaseConfigured
+              ? "Loading players, fixtures and availability from Supabase..."
+              : "Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to a local .env file, then run the SQL in supabase/schema.sql in your Supabase SQL Editor.")}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   function addPlayer() {
     if (!newPlayerName.trim()) return;
