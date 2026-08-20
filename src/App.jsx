@@ -341,7 +341,7 @@ export default function App() {
     { key: "squad", label: "Squad", icon: Users },
     { key: "fixtures", label: "Fixtures", icon: CalendarDays },
     { key: "availability", label: "Availability", icon: ClipboardCheck },
-    { key: "lineups", label: "Lineups", icon: Shirt },
+    { key: "lineups", label: "Squads", icon: Shirt },
     { key: "results", label: "Results & Ratings", icon: Target },
     { key: "analysis", label: "Analysis", icon: BarChart3 },
   ];
@@ -375,7 +375,7 @@ export default function App() {
             </div>
           </div>
           <nav className="flex flex-col gap-1">
-            {navItems.map(item => {
+            {navItems.filter(item => item.key !== "lineups" || role === "manager").map(item => {
               const Icon = item.icon;
               const active = tab === item.key;
               return (
@@ -438,7 +438,7 @@ export default function App() {
             {tab === "dashboard" && (
               <Dashboard
                 upcoming={upcoming} played={played} results={results}
-                topScorers={topScorers} setTab={setTab}
+                topScorers={topScorers} setTab={setTab} role={role}
               />
             )}
 
@@ -490,7 +490,7 @@ export default function App() {
 }
 
 // ---------- Dashboard ----------
-function Dashboard({ upcoming, played, results, topScorers, setTab }) {
+function Dashboard({ upcoming, played, results, topScorers, setTab, role }) {
   const next = upcoming[0];
   const last = played[0];
   const lastResult = last ? results[last.id] : null;
@@ -540,7 +540,7 @@ function Dashboard({ upcoming, played, results, topScorers, setTab }) {
           <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-3">Quick Actions</div>
           <div className="flex flex-col gap-2">
             <button onClick={() => setTab("availability")} style={{ background: COLORS.panel2, color: COLORS.chalk }} className="text-sm text-left px-3 py-2 rounded-md flex items-center justify-between hover:opacity-90">Set availability <ChevronRight size={14}/></button>
-            <button onClick={() => setTab("lineups")} style={{ background: COLORS.panel2, color: COLORS.chalk }} className="text-sm text-left px-3 py-2 rounded-md flex items-center justify-between hover:opacity-90">Pick a lineup <ChevronRight size={14}/></button>
+            {role === "manager" && <button onClick={() => setTab("lineups")} style={{ background: COLORS.panel2, color: COLORS.chalk }} className="text-sm text-left px-3 py-2 rounded-md flex items-center justify-between hover:opacity-90">Pick a squad <ChevronRight size={14}/></button>}
             <button onClick={() => setTab("results")} style={{ background: COLORS.panel2, color: COLORS.chalk }} className="text-sm text-left px-3 py-2 rounded-md flex items-center justify-between hover:opacity-90">Log a result <ChevronRight size={14}/></button>
           </div>
         </Panel>
@@ -689,20 +689,29 @@ function AvailabilityTab({ fixtures, players, availability, setAvail, role, acti
   );
 }
 
-// ---------- Lineups ----------
+// ---------- Squads ----------
 function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId, setLineupFixtureId, assignSlot, toggleSub, role }) {
+  const [selectedSlot, setSelectedSlot] = useState(null);
   const fixture = fixtures.find(f => f.id === lineupFixtureId) || fixtures[0];
   const current = fixture ? (lineups[fixture.id] || { starters: {}, subs: [] }) : { starters: {}, subs: [] };
-  const availableIds = fixture ? players.filter(p => (availability[fixture.id]?.[p.id] || "unset") !== "no").map(p=>p.id) : [];
+  const availableIds = fixture ? players.filter(p => availability[fixture.id]?.[p.id] === "yes").map(p=>p.id) : [];
   const usedIds = new Set([...Object.values(current.starters), ...current.subs]);
 
-  if (!fixture) return <div><SectionHeading eyebrow="Team selection" title="Lineups" /><Panel><div style={{ color: COLORS.chalkDim }}>No upcoming fixture to set a lineup for.</div></Panel></div>;
+  if (role !== "manager") return <div><SectionHeading eyebrow="Manager access" title="Squads" /><Panel><div style={{ color: COLORS.chalkDim }}>Squad selection is available to managers only.</div></Panel></div>;
+  if (!fixture) return <div><SectionHeading eyebrow="Team selection" title="Squads" /><Panel><div style={{ color: COLORS.chalkDim }}>No upcoming fixture to set a squad for.</div></Panel></div>;
+
+  function handlePlayerClick(playerId) {
+    const targetSlot = selectedSlot || FORMATION.find(slot => !current.starters[slot.key])?.key;
+    if (!targetSlot) return;
+    assignSlot(fixture.id, targetSlot, playerId);
+    setSelectedSlot(null);
+  }
 
   return (
     <div>
       <SectionHeading
         eyebrow="Team selection"
-        title="Lineups"
+        title="Squads"
         right={
           <select value={fixture.id} onChange={e => setLineupFixtureId(e.target.value)}
             style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
@@ -711,9 +720,9 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
           </select>
         }
       />
-      {role !== "manager" && (
-        <Panel className="mb-4"><div style={{ color: COLORS.chalkDim }} className="text-sm">Only managers set the lineup. You can view the pitch below.</div></Panel>
-      )}
+      <Panel className="mb-4">
+        <div style={{ color: COLORS.chalkDim }} className="text-sm">Select a pitch position, then click a player name to add them. Without a selected position, players fill the next empty position.</div>
+      </Panel>
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
         <Panel style={{ padding: 0, overflow: "hidden" }}>
           <div
@@ -729,15 +738,15 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
               const pid = current.starters[slot.key];
               const player = players.find(p => p.id === pid);
               return (
-                <div key={slot.key} style={{ position: "absolute", top: `${slot.top}%`, left: `${slot.left}%`, transform: "translate(-50%,-50%)" }} className="flex flex-col items-center">
+                <div key={slot.key} onClick={() => setSelectedSlot(slot.key)} style={{ position: "absolute", top: `${slot.top}%`, left: `${slot.left}%`, transform: "translate(-50%,-50%)" }} className="flex flex-col items-center">
                   <select
                     disabled={role !== "manager"}
                     value={pid || ""}
                     onChange={e => assignSlot(fixture.id, slot.key, e.target.value || null)}
                     style={{
-                      background: player ? COLORS.gold : "#0F281888",
+                      background: selectedSlot === slot.key ? COLORS.green : player ? COLORS.gold : "#0F281888",
                       color: player ? COLORS.bg : COLORS.chalk,
-                      border: `1px solid ${COLORS.gold}88`,
+                      border: `2px solid ${selectedSlot === slot.key ? COLORS.green : COLORS.gold}88`,
                       fontFamily: "'JetBrains Mono', monospace",
                     }}
                     className="text-[10px] rounded-full px-1.5 py-1 w-[64px] text-center appearance-none cursor-pointer"
@@ -753,14 +762,16 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
           </div>
         </Panel>
         <Panel>
-          <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-3">Available squad</div>
+          <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-3">Available squad · yes only</div>
           <div className="flex flex-col gap-1 max-h-[420px] overflow-y-auto pr-1">
             {players.filter(p => availableIds.includes(p.id)).map(p => {
               const inSub = current.subs.includes(p.id);
               const inStart = Object.values(current.starters).includes(p.id);
               return (
                 <div key={p.id} className="flex items-center justify-between text-sm py-1.5" style={{ borderTop: `1px solid ${COLORS.line}` }}>
-                  <div className="flex items-center gap-2"><ShirtBadge number={p.number} size={24} /> {p.name}</div>
+                  <button type="button" onClick={() => handlePlayerClick(p.id)} className="flex items-center gap-2 text-left hover:text-[#E9E4D4]">
+                    <ShirtBadge number={p.number} size={24} /> {p.name}
+                  </button>
                   {inStart ? <Badge color={COLORS.gold}>Starting</Badge> :
                     <button disabled={role !== "manager"} onClick={() => toggleSub(fixture.id, p.id)}
                       style={{ background: inSub ? COLORS.sky+"33" : "transparent", border: `1px solid ${inSub ? COLORS.sky : COLORS.line}`, color: inSub ? COLORS.sky : COLORS.chalkDim }}
