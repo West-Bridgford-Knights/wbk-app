@@ -14,10 +14,11 @@ npm run dev
 
 1. Create a Supabase project at [supabase.com](https://supabase.com/).
 2. Open **SQL Editor**, paste the contents of `supabase/schema.sql`, and run it.
-3. Copy `.env.example` to `.env.local` and fill in the project's URL and anon key
+3. Paste and run `supabase/seed.sql` to load the supplied squad and fixtures. This
+   script clears existing team data first.
+4. Copy `.env.example` to `.env.local` and fill in the project's URL and anon key
    from **Project Settings -> API**.
-4. Restart `npm run dev`. The app will seed the supplied players and fixtures into
-   Supabase the first time the tables are empty.
+5. Restart `npm run dev`.
 
 For GitHub Pages, add repository secrets under **Settings -> Secrets and variables
 -> Actions** with the names `SUPABASE_URL` and `SUPABASE_ANON_KEY`. The deployment

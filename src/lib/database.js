@@ -50,18 +50,10 @@ function fixtureFromRow(row) {
   };
 }
 
-export async function loadAppData(seedPlayers, seedFixtures) {
-  const [existingPlayers, existingFixtures] = await Promise.all([
+export async function loadAppData() {
+  const [players, fixtures, availabilityRows, lineupRows, resultRows] = await Promise.all([
     selectAll("players", "number"),
     selectAll("fixtures", "date"),
-  ]);
-
-  if (existingPlayers.length === 0) await upsertRows("players", seedPlayers);
-  if (existingFixtures.length === 0) await upsertRows("fixtures", seedFixtures.map(fixtureToRow));
-
-  const [players, fixtures, availabilityRows, lineupRows, resultRows] = await Promise.all([
-    existingPlayers.length ? existingPlayers : selectAll("players", "number"),
-    existingFixtures.length ? existingFixtures : selectAll("fixtures", "date"),
     selectAll("availability"),
     selectAll("lineups"),
     selectAll("results"),

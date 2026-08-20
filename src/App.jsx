@@ -32,62 +32,6 @@ const COLORS = {
   green: "#5FA463",
 };
 
-// ---------- Seed data ----------
-const playerNames = [
-  "Opeyemi Adeleke", "David Adeyemo", "Matthew Blaze", "Jacob Brown", "Joseph Bullock",
-  "Jack Carnell", "James Chiu", "Tom Cilvert", "Ed Cochrane", "Harry Cockerham",
-  "Mark Coulthard", "Nathan Cox", "Morgan Davies-Brown", "Peter Draper", "Harry Eggleston",
-  "Harry Fitzjohn", "Gregory Hallford", "Thomas Harrison", "Ben Hawksworth", "Daniel Hemmings",
-  "Joel Holmes", "Harman Khosa", "Andrew Kirkwood", "Nicholas Kirkwood", "Stijn Lenders",
-  "Hamish Llewelyn", "John Lowe", "Tom Marshall", "Elliott Matter", "Luke Maxted",
-  "Declan McNally", "Will Rainford", "Christopher Ryder", "Brandon Vandenhende", "Thomas Vasey",
-  "Tomoya Wada", "Matteo", "Alex", "Jack", "Aiden", "David Nice", "Ross Whiting",
-];
-
-const seedPlayers = playerNames.map((name, index) => ({
-  id: `p${index + 1}`,
-  name,
-  number: index + 1,
-  pos: "MID",
-}));
-
-const seedFixtures = [
-  ["L", "2026-09-06T10:30", "West Bridgford Knights F.C.", "Fanzines United A", "Gresham Sports Park #5", "One"],
-  ["L", "2026-09-13T10:30", "Shire Athletic F.C.", "West Bridgford Knights F.C.", "South Notts Academy, Radcliffe-on-Trent", "One"],
-  ["CC", "2026-09-20T10:30", "West Bridgford Knights F.C.", "Bridgford Villa FC Mens", "GRESHAM SPORTS PARK", "Sunday Senior Trophy"],
-  ["L", "TBC", "West Bridgford Knights F.C.", "Notts Lions", "Gresham Sports Park #5", "One"],
-  ["L", "2026-10-11T10:30", "Radcliffe Olympic FC", "West Bridgford Knights F.C.", "Radcliffe Olympic FC", "One"],
-  ["L", "2026-10-18T10:30", "West Bridgford Knights F.C.", "Notts. Medics F.C", "Gresham Sports Park #5", "One"],
-  ["L", "2026-10-25T10:30", "West Bridgford Knights F.C.", "Bilborough TRD FC", "Gresham Sports Park #5", "One"],
-  ["L", "2026-11-01T10:30", "Bilborough TRD FC", "West Bridgford Knights F.C.", "Harvey Hadden", "One"],
-  ["L", "2026-11-08T10:30", "West Bridgford Knights F.C.", "Legion F.C", "Gresham Sports Park #5", "One"],
-  ["L", "2026-11-15T10:30", "Fanzines United A", "West Bridgford Knights F.C.", "Elms Park, Ruddington #1", "One"],
-  ["L", "2026-11-22T10:30", "West Bridgford Knights F.C.", "Shire Athletic F.C.", "Gresham Sports Park #5", "One"],
-  ["L", "2026-11-29T10:30", "Tollerton F.C.", "West Bridgford Knights F.C.", "East Leake Leisure Centre, #1", "One"],
-  ["L", "2026-12-06T10:30", "West Bridgford Knights F.C.", "Stratford Haven F.C", "Gresham Sports Park #5", "One"],
-  ["L", "TBC", "Notts Lions", "West Bridgford Knights F.C.", "Dunkirk FC #1", "One"],
-  ["L", "2026-12-13T10:30", "West Bridgford Knights F.C.", "Tollerton F.C.", "Gresham Sports Park #5", "One"],
-  ["L", "2027-01-03T10:30", "West Bridgford Knights F.C.", "Radcliffe Olympic FC", "Gresham Sports Park #5", "One"],
-  ["L", "2027-01-17T10:30", "Legion F.C", "West Bridgford Knights F.C.", "Titchfield Park, Hucknall 2", "One"],
-  ["L", "2027-01-24T10:30", "Stratford Haven F.C", "West Bridgford Knights F.C.", "Gresham Sports Park #4", "One"],
-  ["L", "2027-02-28T10:30", "Notts. Medics F.C", "West Bridgford Knights F.C.", "Riverside Sports Centre Riverside Sports Centre 5", "One"],
-].map(([type, date, homeTeam, awayTeam, venue, competition], index) => ({
-  id: `f${index + 1}`,
-  type,
-  date,
-  homeTeam,
-  awayTeam,
-  opponent: homeTeam.startsWith("West Bridgford") ? awayTeam : homeTeam,
-  venue,
-  competition,
-  status: "upcoming",
-  oppPos: 6,
-}));
-
-const seedResults = {};
-
-const seedAvailability = {};
-
 const FORMATION = [
   { key: "GK", label: "GK", top: 90, left: 50 },
   { key: "LB", label: "LB", top: 72, left: 15 },
@@ -233,10 +177,10 @@ function Panel({ children, style, className = "" }) {
 
 // ---------- Main App ----------
 export default function App() {
-  const [players, setPlayers] = useState(seedPlayers);
-  const [fixtures, setFixtures] = useState(seedFixtures);
+  const [players, setPlayers] = useState([]);
+  const [fixtures, setFixtures] = useState([]);
   const [results, setResults] = useState({});
-  const [availability, setAvailability] = useState(seedAvailability);
+  const [availability, setAvailability] = useState({});
   const [lineups, setLineups] = useState({});
   const [dataReady, setDataReady] = useState(false);
   const [dataError, setDataError] = useState("");
@@ -250,7 +194,7 @@ export default function App() {
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
-    loadAppData(seedPlayers, seedFixtures)
+    loadAppData()
       .then(data => {
         setPlayers(data.players);
         setFixtures(data.fixtures);
