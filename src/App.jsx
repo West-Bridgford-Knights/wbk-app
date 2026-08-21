@@ -509,21 +509,31 @@ export default function App() {
   // ---------- Derived analysis ----------
   const analysis = useMemo(() => {
     const perPlayer = {};
-    players.forEach(p => { perPlayer[p.id] = { goals: 0, assists: 0, apps: 0, ratingSum: 0, adjSum: 0, minutes: 0, diffFaced: [] }; });
+    players.forEach(p => { perPlayer[p.id] = { goals: 0, assists: 0, apps: 0, ratingSum: 0, adjSum: 0, minutes: 0, diffFaced: [], cleanSheets: 0, impactSum: 0 }; });
     Object.entries(results).forEach(([fid, res]) => {
       const fixture = fixtures.find(f => f.id === fid);
       const diff = fixture ? difficultyFromPos(fixture.oppPos) : 2.5;
       Object.entries(res.stats).forEach(([pid, s]) => {
-        if (!perPlayer[pid]) return;
-        perPlayer[pid].goals += s.g;
-        perPlayer[pid].assists += s.a;
-        perPlayer[pid].apps += 1;
-        perPlayer[pid].minutes += s.min;
-        perPlayer[pid].ratingSum += s.r;
+        const d = perPlayer[pid];
+        if (!d) return;
+        const pos = players.find(p => p.id === pid)?.pos;
+        d.goals += s.g;
+        d.assists += s.a;
+        d.apps += 1;
+        d.minutes += s.min;
+        d.ratingSum += s.r;
         // reward strong ratings against tougher opposition
         const adj = s.r * (1 + (diff - 2.5) / 10);
-        perPlayer[pid].adjSum += adj;
-        perPlayer[pid].diffFaced.push(diff);
+        d.adjSum += adj;
+        d.diffFaced.push(diff);
+
+        // Impact score layers minutes played, clean sheets for GK/DEF, and goal
+        // contributions for MID/FWD on top of the difficulty-adjusted rating.
+        const minutesPoints = (Math.min(s.min, 90) / 90) * 0.5;
+        const isCleanSheet = (pos === "GK" || pos === "DEF") && s.min >= 60 && res.theirScore === 0;
+        if (isCleanSheet) d.cleanSheets += 1;
+        const goalContribPoints = (pos === "MID" || pos === "FWD") ? s.g * 0.5 + s.a * 0.3 : 0;
+        d.impactSum += adj + minutesPoints + (isCleanSheet ? 1 : 0) + goalContribPoints;
       });
     });
     return players.map(p => {
@@ -531,11 +541,14 @@ export default function App() {
       const avgRating = d.apps ? d.ratingSum / d.apps : 0;
       const avgAdj = d.apps ? d.adjSum / d.apps : 0;
       const avgDiff = d.diffFaced.length ? d.diffFaced.reduce((a,b)=>a+b,0) / d.diffFaced.length : 0;
-      return { ...p, ...d, avgRating, avgAdj, avgDiff };
+      const avgMinutes = d.apps ? d.minutes / d.apps : 0;
+      const avgImpact = d.apps ? d.impactSum / d.apps : 0;
+      return { ...p, ...d, avgRating, avgAdj, avgDiff, avgMinutes, avgImpact };
     });
   }, [players, results, fixtures]);
 
   const rankedForSelection = [...analysis].filter(a => a.apps > 0).sort((a,b)=>b.avgAdj - a.avgAdj);
+  const rankedForImpact = [...analysis].filter(a => a.apps > 0).sort((a,b)=>b.avgImpact - a.avgImpact);
   const topScorers = [...analysis].filter(a=>a.goals>0).sort((a,b)=>b.goals-a.goals);
   const topAssists = [...analysis].filter(a=>a.assists>0).sort((a,b)=>b.assists-a.assists);
 
@@ -867,7 +880,7 @@ export default function App() {
             )}
 
             {tab === "analysis" && (
-              <AnalysisTab analysis={analysis} rankedForSelection={rankedForSelection} topScorers={topScorers} topAssists={topAssists} role={role} />
+              <AnalysisTab analysis={analysis} rankedForSelection={rankedForSelection} rankedForImpact={rankedForImpact} topScorers={topScorers} topAssists={topAssists} role={role} />
             )}
           </div>
         </main>
@@ -1728,7 +1741,7 @@ function FormTab({ formSorted }) {
 }
 
 // ---------- Analysis ----------
-function AnalysisTab({ analysis, rankedForSelection, topScorers, topAssists, role }) {
+function AnalysisTab({ analysis, rankedForSelection, rankedForImpact, topScorers, topAssists, role }) {
   const goalsChart = topScorers.slice(0, 8).map(p => ({ name: p.name.split(" ")[0] + " " + p.name.split(" ")[1][0] + ".", goals: p.goals, assists: p.assists }));
   const scatterData = analysis.filter(a => a.apps > 0).map(a => ({ x: a.avgDiff, y: a.avgRating, name: a.name, z: a.apps }));
 
@@ -1809,6 +1822,41 @@ function AnalysisTab({ analysis, rankedForSelection, topScorers, topAssists, rol
           </Panel>
           <div style={{ color: COLORS.chalkDim }} className="text-xs mt-3">
             Selection index = average rating, weighted up when the opponent's league position made the fixture tougher. Ranks players on who steps up, not just who scores most.
+          </div>
+
+          <Panel style={{ padding: 0 }} className="mt-4">
+            <div className="p-4 pb-2 flex items-center gap-2">
+              <Shirt size={15} color={COLORS.gold} />
+              <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider">Impact score — minutes, clean sheets &amp; goal contributions</div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ color: COLORS.chalkDim, borderBottom: `1px solid ${COLORS.line}` }} className="text-xs uppercase text-left">
+                    <th className="py-2 px-3">Player</th><th className="px-2">Pos</th><th className="px-2">Apps</th><th className="px-2">Avg mins</th><th className="px-2">Clean sheets</th><th className="px-2">G+A</th><th className="px-2">Impact score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rankedForImpact.map((p, i) => (
+                    <tr key={p.id} style={{ borderBottom: `1px solid ${COLORS.line}` }}>
+                      <td className="py-2 px-3 flex items-center gap-2">
+                        <span style={{ color: i < 3 ? COLORS.gold : COLORS.chalkDim, fontFamily: "'JetBrains Mono', monospace" }} className="text-xs w-4">{i+1}</span>
+                        <ShirtBadge number={p.number} size={24} /> {p.name}
+                      </td>
+                      <td className="px-2"><Badge subtle color={COLORS.sky}>{p.pos}</Badge></td>
+                      <td className="px-2">{p.apps}</td>
+                      <td className="px-2">{p.avgMinutes.toFixed(0)}'</td>
+                      <td className="px-2">{(p.pos === "GK" || p.pos === "DEF") ? p.cleanSheets : "—"}</td>
+                      <td className="px-2">{(p.pos === "MID" || p.pos === "FWD") ? `${p.goals}+${p.assists}` : "—"}</td>
+                      <td className="px-2 font-semibold" style={{ color: COLORS.gold }}>{p.avgImpact.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+          <div style={{ color: COLORS.chalkDim }} className="text-xs mt-3">
+            Impact score = the selection index above, plus credit for minutes played, a bonus for GK/DEF clean sheets (playing 60+ minutes in a match with no goals conceded), and a bonus per goal/assist for MID/FWD.
           </div>
         </>
       )}
