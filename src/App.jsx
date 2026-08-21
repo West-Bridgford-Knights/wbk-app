@@ -330,11 +330,14 @@ async function downloadSquadPng(fixture, players, captainId, previewWindow) {
 
   const dataUrl = canvas.toDataURL("image/png");
   // Mobile browsers (Safari in particular) don't reliably honour the download attribute,
-  // so a straight download can land somewhere the user can't find. Navigating a
-  // pre-opened tab to the image instead lets them long-press/right-click to save it.
+  // so a straight download can land somewhere the user can't find. Writing the image into
+  // a pre-opened tab lets them long-press/save it instead — navigating that tab's location
+  // instead of writing to it fails silently on iOS Safari once the async work above has
+  // used up the user-gesture window, leaving the tab stuck on about:blank.
   if (previewWindow && !previewWindow.closed) {
-    previewWindow.document.title = `Squad vs ${fixture.opponent}`;
-    previewWindow.location.href = dataUrl;
+    previewWindow.document.open();
+    previewWindow.document.write(`<!doctype html><html><head><title>Squad vs ${fixture.opponent}</title><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;background:#12162A;min-height:100vh;display:flex;align-items:center;justify-content:center;"><img src="${dataUrl}" alt="Squad graphic" style="max-width:100%;height:auto;display:block;"></body></html>`);
+    previewWindow.document.close();
   } else {
     const link = document.createElement("a");
     link.download = `match-day-squad-${fixture.id}.png`;
