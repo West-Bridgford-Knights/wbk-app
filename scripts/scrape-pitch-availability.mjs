@@ -11,9 +11,12 @@ const execFileAsync = promisify(execFile);
 const PB_API_URL = "https://api.pitchbooking.com";
 const PB_API_KEY = "1ag1Qg45a.d80161e2b6d5de787066e2665c42d2cd433c104e";
 
-// The specific pitch/facility we book for home fixtures. Update this if the venue changes,
-// or extend the script to look up a facility id per-venue if we ever book more than one.
-const FACILITY_ID = "d3bc83f0-a754-40a9-ba16-d7e31e00252d";
+// The specific pitches we check for home fixtures. Add/remove ids here as the venues we
+// book change.
+const FACILITY_IDS = [
+  "d3bc83f0-a754-40a9-ba16-d7e31e00252d", // Gresham Sports Park - ATP2 (Quarters)
+  "36379e04-3e64-4a9c-b3c5-7b46be11db82", // Gresham Sports Park - ATP1 (Thirds)
+];
 
 const CLUB_NAME = "West Bridgford Knights F.C.";
 // Home fixtures need the pitch free from 10am to 12pm (kick-off + a buffer either side).
@@ -32,9 +35,9 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 
 // api.pitchbooking.com sits behind Cloudflare, same as the FA site — shell out to curl
 // rather than fetch() for the same TLS-fingerprint reason as the other scrapers.
-async function fetchWeekAvailability(anyDateInWeek) {
+async function fetchWeekAvailability(facilityId, anyDateInWeek) {
   const url =
-    `${PB_API_URL}/api/facilities/${FACILITY_ID}/availability` +
+    `${PB_API_URL}/api/facilities/${facilityId}/availability` +
     `?start_date=${anyDateInWeek}&pitch_split=1&day_range=7&sub_facility_id=&selectedDuration=`;
   const { stdout } = await execFileAsync(
     "curl",
@@ -47,7 +50,7 @@ async function fetchWeekAvailability(anyDateInWeek) {
       "--header", "Accept: application/json",
       "--header", "Content-Type: application/json",
       "--header", `Api-Key: ApiKey ${PB_API_KEY}`,
-      "--header", `Referer: https://pitchbooking.com/book/facility/${FACILITY_ID}`,
+      "--header", `Referer: https://pitchbooking.com/book/facility/${facilityId}`,
       "--header", "Origin: https://pitchbooking.com",
       url,
     ],
@@ -102,22 +105,25 @@ async function main() {
   const rows = [];
   const checkedAt = new Date().toISOString();
 
-  for (const weekStart of weeksToFetch) {
-    const week = await fetchWeekAvailability(weekStart);
+  for (const facilityId of FACILITY_IDS) {
+    for (const weekStart of weeksToFetch) {
+      const week = await fetchWeekAvailability(facilityId, weekStart);
 
-    for (const daySlots of Object.values(week.availableTimeSlotsForWeekByDay)) {
-      for (const slot of daySlots) {
-        const slotDate = toDate(slot.startTime);
-        const hour = Number(toSlotStart(slot.startTime).slice(0, 2));
-        if (!targetDates.includes(slotDate) || !WATCHED_SLOT_HOURS.includes(hour)) continue;
-        rows.push({
-          date: slotDate,
-          slot_start: toSlotStart(slot.startTime),
-          facility_name: week.name,
-          available: !slot.unavailable,
-          block_reason: slot.blockReason || null,
-          checked_at: checkedAt,
-        });
+      for (const daySlots of Object.values(week.availableTimeSlotsForWeekByDay)) {
+        for (const slot of daySlots) {
+          const slotDate = toDate(slot.startTime);
+          const hour = Number(toSlotStart(slot.startTime).slice(0, 2));
+          if (!targetDates.includes(slotDate) || !WATCHED_SLOT_HOURS.includes(hour)) continue;
+          rows.push({
+            facility_id: facilityId,
+            date: slotDate,
+            slot_start: toSlotStart(slot.startTime),
+            facility_name: week.name,
+            available: !slot.unavailable,
+            block_reason: slot.blockReason || null,
+            checked_at: checkedAt,
+          });
+        }
       }
     }
   }
@@ -130,7 +136,7 @@ async function main() {
   const { error: upsertError } = await supabase.from("pitch_availability").upsert(rows);
   if (upsertError) throw upsertError;
 
-  console.log(`Checked pitch availability for ${targetDates.length} fixture date(s), stored ${rows.length} slot rows.`);
+  console.log(`Checked ${FACILITY_IDS.length} pitch(es) for ${targetDates.length} fixture date(s), stored ${rows.length} slot rows.`);
 }
 
 main().catch((error) => {

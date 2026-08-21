@@ -1587,7 +1587,10 @@ function SubsTab({ players, payments, setPaymentStatus, role }) {
 }
 
 // ---------- Pitch availability ----------
-const PITCHBOOKING_FACILITY_URL = "https://pitchbooking.com/book/facility/d3bc83f0-a754-40a9-ba16-d7e31e00252d";
+const PITCH_FACILITIES = [
+  { id: "d3bc83f0-a754-40a9-ba16-d7e31e00252d", label: "Gresham Sports Park — ATP2 (Quarters)" },
+  { id: "36379e04-3e64-4a9c-b3c5-7b46be11db82", label: "Gresham Sports Park — ATP1 (Thirds)" },
+];
 const PITCH_WATCHED_SLOTS = [
   { slot: "10:00", label: "10:00–11:00" },
   { slot: "11:00", label: "11:00–12:00" },
@@ -1602,46 +1605,53 @@ function PitchAvailabilityTab({ fixtures, pitchAvailability, role }) {
 
   return (
     <div>
-      <SectionHeading
-        eyebrow="Home fixtures · 10am–12pm"
-        title="Pitch Availability"
-        right={
-          <a
-            href={PITCHBOOKING_FACILITY_URL} target="_blank" rel="noreferrer"
-            style={{ background: COLORS.gold, color: COLORS.bg }}
-            className="text-xs font-semibold px-3 py-2 rounded-md flex items-center gap-1.5"
-          >
-            Book on Pitchbooking <ExternalLink size={13} />
-          </a>
-        }
-      />
+      <SectionHeading eyebrow="Home fixtures · 10am–12pm" title="Pitch Availability" />
       <Panel className="mb-4">
         <div style={{ color: COLORS.chalkDim }} className="text-sm">
-          Checked automatically once a day against the club's Pitchbooking page for each upcoming home fixture. Booking itself still happens on their site — this just flags whether the slot looks free.
+          Checked automatically once a day against Pitchbooking for each upcoming home fixture, across {PITCH_FACILITIES.length} pitches. Booking itself still happens on their site — this just flags whether a slot looks free.
         </div>
       </Panel>
       <div className="flex flex-col gap-2">
         {homeFixtures.map(f => {
           const dateStr = dateKey(f.date);
-          const slots = dateStr ? pitchAvailability[dateStr] : null;
-          const checkedAt = slots && Object.values(slots).find(s => s.checkedAt)?.checkedAt;
           return (
-            <Panel key={f.id} className="flex items-center justify-between flex-wrap gap-3">
-              <div>
+            <Panel key={f.id}>
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
                 <div className="text-sm font-semibold">vs {f.opponent}</div>
-                <div style={{ color: COLORS.chalkDim }} className="text-xs mt-0.5">{formatFixtureDate(f.date)}</div>
-                {checkedAt && (
-                  <div style={{ color: COLORS.chalkDim }} className="text-[11px] mt-1">
-                    Checked {new Date(checkedAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                  </div>
-                )}
+                <div style={{ color: COLORS.chalkDim }} className="text-xs">{formatFixtureDate(f.date)}</div>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {PITCH_WATCHED_SLOTS.map(({ slot, label }) => {
-                  const entry = slots?.[slot];
-                  const color = !entry ? COLORS.chalkDim : entry.available ? COLORS.green : COLORS.clay;
-                  const text = !entry ? "Not checked yet" : entry.available ? "Available" : "Booked";
-                  return <Badge key={slot} color={color}>{label} · {text}</Badge>;
+              <div className="flex flex-col gap-1.5">
+                {PITCH_FACILITIES.map(facility => {
+                  const slots = dateStr ? pitchAvailability[facility.id]?.[dateStr] : null;
+                  const checkedAt = slots && Object.values(slots).find(s => s.checkedAt)?.checkedAt;
+                  const label = Object.values(slots || {})[0]?.facilityName || facility.label;
+                  return (
+                    <div key={facility.id} className="flex items-center justify-between flex-wrap gap-2 py-1.5" style={{ borderTop: `1px solid ${COLORS.line}` }}>
+                      <div>
+                        <div className="text-xs" style={{ color: COLORS.chalkDim }}>{label}</div>
+                        {checkedAt && (
+                          <div className="text-[11px]" style={{ color: COLORS.chalkDim }}>
+                            Checked {new Date(checkedAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {PITCH_WATCHED_SLOTS.map(({ slot, label: slotLabel }) => {
+                          const entry = slots?.[slot];
+                          const color = !entry ? COLORS.chalkDim : entry.available ? COLORS.green : COLORS.clay;
+                          const text = !entry ? "Not checked yet" : entry.available ? "Available" : "Booked";
+                          return <Badge key={slot} color={color}>{slotLabel} · {text}</Badge>;
+                        })}
+                        <a
+                          href={`https://pitchbooking.com/book/facility/${facility.id}`} target="_blank" rel="noreferrer"
+                          style={{ color: COLORS.gold }}
+                          className="text-xs font-semibold flex items-center gap-1"
+                        >
+                          Book <ExternalLink size={12} />
+                        </a>
+                      </div>
+                    </div>
+                  );
                 })}
               </div>
             </Panel>

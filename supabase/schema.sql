@@ -83,14 +83,31 @@ alter table public.payments drop constraint if exists payments_status_check;
 alter table public.payments add constraint payments_status_check check (status in ('paid', 'unpaid', 'excluded'));
 
 create table if not exists public.pitch_availability (
+  facility_id text not null,
   date date not null,
   slot_start text not null,
   facility_name text,
   available boolean not null,
   block_reason text,
   checked_at timestamptz not null default now(),
-  primary key (date, slot_start)
+  primary key (facility_id, date, slot_start)
 );
+
+-- Migrate installs from before a second pitch was tracked, when facility_id didn't exist
+-- and the primary key was just (date, slot_start).
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'pitch_availability' and column_name = 'facility_id'
+  ) then
+    alter table public.pitch_availability add column facility_id text;
+    update public.pitch_availability set facility_id = 'd3bc83f0-a754-40a9-ba16-d7e31e00252d' where facility_id is null;
+    alter table public.pitch_availability alter column facility_id set not null;
+    alter table public.pitch_availability drop constraint if exists pitch_availability_pkey;
+    alter table public.pitch_availability add primary key (facility_id, date, slot_start);
+  end if;
+end $$;
 
 create table if not exists public.league_table (
   team text primary key,

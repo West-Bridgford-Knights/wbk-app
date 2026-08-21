@@ -77,9 +77,12 @@ export async function loadAppData() {
     }), {}),
     pitchAvailability: pitchAvailabilityRows.reduce((all, row) => ({
       ...all,
-      [row.date]: {
-        ...(all[row.date] || {}),
-        [row.slot_start]: { available: row.available, blockReason: row.block_reason, facilityName: row.facility_name, checkedAt: row.checked_at },
+      [row.facility_id]: {
+        ...(all[row.facility_id] || {}),
+        [row.date]: {
+          ...(all[row.facility_id]?.[row.date] || {}),
+          [row.slot_start]: { available: row.available, blockReason: row.block_reason, facilityName: row.facility_name, checkedAt: row.checked_at },
+        },
       },
     }), {}),
     lineups: lineupRows.reduce((all, row) => ({
