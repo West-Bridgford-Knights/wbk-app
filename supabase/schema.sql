@@ -2,8 +2,11 @@ create table if not exists public.players (
   id text primary key,
   name text not null,
   number integer not null,
-  pos text not null default 'MID'
+  pos text not null default 'MID',
+  active boolean not null default true
 );
+
+alter table public.players add column if not exists active boolean not null default true;
 
 create table if not exists public.fixtures (
   id text primary key,

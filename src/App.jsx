@@ -499,6 +499,10 @@ export default function App() {
     setManagerUnlockClicks(nextClickCount);
   }
 
+  // Players marked not-playing are kept in the squad roster but dropped from anywhere
+  // availability or subs are tracked/chased, so nobody's chasing someone who's left.
+  const activePlayers = players.filter(p => p.active !== false);
+
   const upcoming = fixtures.filter(f => f.status === "upcoming").sort((a,b)=>a.date.localeCompare(b.date));
   const played = fixtures.filter(f => f.status === "played").sort((a,b)=>b.date.localeCompare(a.date));
 
@@ -589,7 +593,7 @@ export default function App() {
   function addPlayer() {
     if (!newPlayerName.trim()) return;
     const nextNum = Math.max(0, ...players.map(p => p.number)) + 1;
-    const player = { id: "p" + Date.now(), name: newPlayerName.trim(), number: nextNum, pos: "MID" };
+    const player = { id: "p" + Date.now(), name: newPlayerName.trim(), number: nextNum, pos: "MID", active: true };
     setPlayers(prev => [...prev, player]);
     void savePlayer(player).catch(reportSaveError);
     setNewPlayerName("");
@@ -824,7 +828,7 @@ export default function App() {
 
             {tab === "fixtures" && (
               <FixturesTab
-                fixtures={fixtures} players={players} availability={availability}
+                fixtures={fixtures} players={activePlayers} availability={availability}
                 fixtureForm={fixtureForm} setFixtureForm={setFixtureForm}
                 addFixture={addFixture} role={role}
                 refreshFixtures={refreshFixtures} fixturesLoading={fixturesLoading}
@@ -833,21 +837,21 @@ export default function App() {
 
             {tab === "availability" && (
               <AvailabilityTab
-                fixtures={fixtures} players={players} availability={availability}
+                fixtures={fixtures} players={activePlayers} availability={availability}
                 setAvail={setAvail} role={role} activePlayerId={activePlayerId}
               />
             )}
 
             {tab === "lineups" && (
               <LineupsTab
-                fixtures={upcoming} players={players} availability={availability}
+                fixtures={upcoming} players={activePlayers} availability={availability}
                 lineups={lineups} lineupFixtureId={lineupFixtureId} setLineupFixtureId={setLineupFixtureId}
                 assignSlot={assignSlot} toggleSub={toggleSub} selectCaptain={selectCaptain} role={role}
               />
             )}
 
             {tab === "subs" && (
-              <SubsTab players={players} payments={payments} setPaymentStatus={setPaymentStatus} role={role} />
+              <SubsTab players={activePlayers} payments={payments} setPaymentStatus={setPaymentStatus} role={role} />
             )}
 
             {tab === "results" && (
@@ -963,6 +967,7 @@ function PlayerCard({ p, role, updatePlayer }) {
   const [name, setName] = useState(p.name);
   const [number, setNumber] = useState(String(p.number));
   const editable = role === "manager";
+  const isActive = p.active !== false;
 
   useEffect(() => setName(p.name), [p.name]);
   useEffect(() => setNumber(String(p.number)), [p.number]);
@@ -980,7 +985,8 @@ function PlayerCard({ p, role, updatePlayer }) {
   }
 
   return (
-    <Panel>
+    <Panel style={{ opacity: isActive ? 1 : 0.6 }}>
+      {!isActive && <div className="mb-2"><Badge subtle color={COLORS.chalkDim}>Not playing currently</Badge></div>}
       <div className="flex items-center gap-3 mb-3">
         {editable ? (
           <input
@@ -1038,6 +1044,16 @@ function PlayerCard({ p, role, updatePlayer }) {
           <span style={{ color: COLORS.chalkDim }} className="text-[11px]">Avg rating</span>
           <Stars value={p.avgRating} />
         </div>
+      )}
+      {role === "manager" && (
+        <button
+          type="button"
+          onClick={() => updatePlayer(p.id, { active: !isActive })}
+          style={{ color: isActive ? COLORS.clay : COLORS.green, border: `1px solid ${isActive ? COLORS.clay : COLORS.green}55` }}
+          className="mt-3 w-full text-[11px] font-medium px-2 py-1.5 rounded-md"
+        >
+          {isActive ? "Mark as not playing currently" : "Mark as playing again"}
+        </button>
       )}
     </Panel>
   );
