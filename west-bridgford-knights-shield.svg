@@ -11,10 +11,10 @@
   <!-- background -->
   <rect x="0" y="0" width="1000" height="1000" fill="#191E38"/>
 
-  <!-- shield -->
+  <!-- shield: traced from source proportions (short sharp top point, longer tapered bottom point) -->
   <g transform="translate(500,500)">
-    <polygon points="0,-370 320.4,-185 320.4,185 0,370 -320.4,185 -320.4,-185"
-             fill="none" stroke="#C6A24D" stroke-width="26"/>
-    <text x="0" y="130" text-anchor="middle" class="headline" fill="#C6A24D" font-size="355">W</text>
+    <polygon points="0,-354.75 320.4,-194.55 320.4,57.19 0,354.75 -320.4,57.19 -320.4,-194.55"
+             fill="none" stroke="#C6A24D" stroke-width="34"/>
+    <text x="0" y="45" text-anchor="middle" class="headline" fill="#C6A24D" font-size="330">W</text>
   </g>
 </svg>
