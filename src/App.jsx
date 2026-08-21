@@ -207,7 +207,7 @@ function Panel({ children, style, className = "" }) {
   );
 }
 
-async function downloadSquadPng(fixture, players, captainId) {
+async function downloadSquadPng(fixture, players, captainId, previewWindow) {
   const canvas = document.createElement("canvas");
   canvas.width = 800;
   canvas.height = 1100;
@@ -328,10 +328,19 @@ async function downloadSquadPng(fixture, players, captainId) {
   context.fillStyle = gold;
   context.fillRect(72, 1072, 656, 2);
 
-  const link = document.createElement("a");
-  link.download = `match-day-squad-${fixture.id}.png`;
-  link.href = canvas.toDataURL("image/png");
-  link.click();
+  const dataUrl = canvas.toDataURL("image/png");
+  // Mobile browsers (Safari in particular) don't reliably honour the download attribute,
+  // so a straight download can land somewhere the user can't find. Navigating a
+  // pre-opened tab to the image instead lets them long-press/right-click to save it.
+  if (previewWindow && !previewWindow.closed) {
+    previewWindow.document.title = `Squad vs ${fixture.opponent}`;
+    previewWindow.location.href = dataUrl;
+  } else {
+    const link = document.createElement("a");
+    link.download = `match-day-squad-${fixture.id}.png`;
+    link.href = dataUrl;
+    link.click();
+  }
 }
 
 // ---------- Main App ----------
@@ -761,7 +770,7 @@ export default function App() {
             )}
 
             {tab === "analysis" && (
-              <AnalysisTab analysis={analysis} rankedForSelection={rankedForSelection} topScorers={topScorers} topAssists={topAssists} />
+              <AnalysisTab analysis={analysis} rankedForSelection={rankedForSelection} topScorers={topScorers} topAssists={topAssists} role={role} />
             )}
           </div>
         </main>
@@ -822,7 +831,7 @@ function Dashboard({ upcoming, played, results, topScorers, setTab, role }) {
           <div className="flex flex-col gap-2">
             <button onClick={() => setTab("availability")} style={{ background: COLORS.panel2, color: COLORS.chalk }} className="text-sm text-left px-3 py-2 rounded-md flex items-center justify-between hover:opacity-90">Set availability <ChevronRight size={14}/></button>
             {role === "manager" && <button onClick={() => setTab("lineups")} style={{ background: COLORS.panel2, color: COLORS.chalk }} className="text-sm text-left px-3 py-2 rounded-md flex items-center justify-between hover:opacity-90">Matchday squads <ChevronRight size={14}/></button>}
-            <button onClick={() => setTab("results")} style={{ background: COLORS.panel2, color: COLORS.chalk }} className="text-sm text-left px-3 py-2 rounded-md flex items-center justify-between hover:opacity-90">Log a result <ChevronRight size={14}/></button>
+            {role === "manager" && <button onClick={() => setTab("results")} style={{ background: COLORS.panel2, color: COLORS.chalk }} className="text-sm text-left px-3 py-2 rounded-md flex items-center justify-between hover:opacity-90">Log a result <ChevronRight size={14}/></button>}
           </div>
         </Panel>
       </div>
@@ -931,10 +940,12 @@ function PlayerCard({ p, role, updatePlayer }) {
         <div><div style={{ fontFamily: "'Bebas Neue', sans-serif", color: COLORS.gold }} className="text-xl">{p.goals}</div><div style={{ color: COLORS.chalkDim }} className="text-[10px] uppercase">Goals</div></div>
         <div><div style={{ fontFamily: "'Bebas Neue', sans-serif", color: COLORS.gold }} className="text-xl">{p.assists}</div><div style={{ color: COLORS.chalkDim }} className="text-[10px] uppercase">Assists</div></div>
       </div>
-      <div className="mt-3 flex items-center justify-between">
-        <span style={{ color: COLORS.chalkDim }} className="text-[11px]">Avg rating</span>
-        <Stars value={p.avgRating} />
-      </div>
+      {role === "manager" && (
+        <div className="mt-3 flex items-center justify-between">
+          <span style={{ color: COLORS.chalkDim }} className="text-[11px]">Avg rating</span>
+          <Stars value={p.avgRating} />
+        </div>
+      )}
     </Panel>
   );
 }
@@ -1152,7 +1163,10 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
             <button
               type="button"
               disabled={availableIds.length === 0}
-              onClick={() => downloadSquadPng(fixture, players.filter(p => availableIds.includes(p.id)), current.captain)}
+              onClick={() => {
+                const previewWindow = window.open("", "_blank");
+                downloadSquadPng(fixture, players.filter(p => availableIds.includes(p.id)), current.captain, previewWindow);
+              }}
               style={{ background: COLORS.gold, color: COLORS.bg, opacity: availableIds.length ? 1 : 0.5 }}
               className="text-xs font-semibold px-3 py-2 rounded-md flex items-center gap-1.5"
             >
@@ -1416,7 +1430,7 @@ function FormTab({ formSorted }) {
 }
 
 // ---------- Analysis ----------
-function AnalysisTab({ analysis, rankedForSelection, topScorers, topAssists }) {
+function AnalysisTab({ analysis, rankedForSelection, topScorers, topAssists, role }) {
   const goalsChart = topScorers.slice(0, 8).map(p => ({ name: p.name.split(" ")[0] + " " + p.name.split(" ")[1][0] + ".", goals: p.goals, assists: p.assists }));
   const scatterData = analysis.filter(a => a.apps > 0).map(a => ({ x: a.avgDiff, y: a.avgRating, name: a.name, z: a.apps }));
 
@@ -1424,7 +1438,7 @@ function AnalysisTab({ analysis, rankedForSelection, topScorers, topAssists }) {
     <div>
       <SectionHeading eyebrow="Team performance" title="Analysis" />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+      <div className={`grid grid-cols-1 gap-4 mb-5 ${role === "manager" ? "md:grid-cols-2" : ""}`}>
         <Panel>
           <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-3">Goals &amp; Assists</div>
           <div style={{ width: "100%", height: 220 }}>
@@ -1441,59 +1455,65 @@ function AnalysisTab({ analysis, rankedForSelection, topScorers, topAssists }) {
           </div>
         </Panel>
 
-        <Panel>
-          <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-1">Rating vs. Opponent Difficulty</div>
-          <div style={{ color: COLORS.chalkDim }} className="text-[11px] mb-2">Players in the top-right raise their game against the toughest opponents.</div>
-          <div style={{ width: "100%", height: 220 }}>
-            <ResponsiveContainer>
-              <ScatterChart margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
-                <CartesianGrid stroke={COLORS.line} />
-                <XAxis type="number" dataKey="x" name="Avg difficulty faced" domain={[0,5]} tick={{ fill: COLORS.chalkDim, fontSize: 11 }} axisLine={{ stroke: COLORS.line }} tickLine={false} />
-                <YAxis type="number" dataKey="y" name="Avg rating" domain={[0,5]} tick={{ fill: COLORS.chalkDim, fontSize: 11 }} axisLine={{ stroke: COLORS.line }} tickLine={false} />
-                <ZAxis type="number" dataKey="z" range={[60, 200]} />
-                <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={{ background: COLORS.panel2, border: `1px solid ${COLORS.line}`, borderRadius: 8, color: COLORS.chalk }}
-                  formatter={(val, key) => [Number(val).toFixed(1), key === "x" ? "Difficulty" : "Rating"]} labelFormatter={()=>""} />
-                <Scatter data={scatterData} fill={COLORS.gold}>
-                  {scatterData.map((_, i) => <Cell key={i} fill={COLORS.gold} />)}
-                </Scatter>
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
-        </Panel>
+        {role === "manager" && (
+          <Panel>
+            <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-1">Rating vs. Opponent Difficulty</div>
+            <div style={{ color: COLORS.chalkDim }} className="text-[11px] mb-2">Players in the top-right raise their game against the toughest opponents.</div>
+            <div style={{ width: "100%", height: 220 }}>
+              <ResponsiveContainer>
+                <ScatterChart margin={{ top: 5, right: 10, bottom: 5, left: 0 }}>
+                  <CartesianGrid stroke={COLORS.line} />
+                  <XAxis type="number" dataKey="x" name="Avg difficulty faced" domain={[0,5]} tick={{ fill: COLORS.chalkDim, fontSize: 11 }} axisLine={{ stroke: COLORS.line }} tickLine={false} />
+                  <YAxis type="number" dataKey="y" name="Avg rating" domain={[0,5]} tick={{ fill: COLORS.chalkDim, fontSize: 11 }} axisLine={{ stroke: COLORS.line }} tickLine={false} />
+                  <ZAxis type="number" dataKey="z" range={[60, 200]} />
+                  <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={{ background: COLORS.panel2, border: `1px solid ${COLORS.line}`, borderRadius: 8, color: COLORS.chalk }}
+                    formatter={(val, key) => [Number(val).toFixed(1), key === "x" ? "Difficulty" : "Rating"]} labelFormatter={()=>""} />
+                  <Scatter data={scatterData} fill={COLORS.gold}>
+                    {scatterData.map((_, i) => <Cell key={i} fill={COLORS.gold} />)}
+                  </Scatter>
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+          </Panel>
+        )}
       </div>
 
-      <Panel style={{ padding: 0 }}>
-        <div className="p-4 pb-2 flex items-center gap-2">
-          <Zap size={15} color={COLORS.gold} />
-          <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider">Selection index — difficulty-adjusted rating</div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr style={{ color: COLORS.chalkDim, borderBottom: `1px solid ${COLORS.line}` }} className="text-xs uppercase text-left">
-                <th className="py-2 px-3">Player</th><th className="px-2">Apps</th><th className="px-2">Avg rating</th><th className="px-2">Avg difficulty faced</th><th className="px-2">Selection index</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rankedForSelection.map((p, i) => (
-                <tr key={p.id} style={{ borderBottom: `1px solid ${COLORS.line}` }}>
-                  <td className="py-2 px-3 flex items-center gap-2">
-                    <span style={{ color: i < 3 ? COLORS.gold : COLORS.chalkDim, fontFamily: "'JetBrains Mono', monospace" }} className="text-xs w-4">{i+1}</span>
-                    <ShirtBadge number={p.number} size={24} /> {p.name}
-                  </td>
-                  <td className="px-2">{p.apps}</td>
-                  <td className="px-2"><Stars value={p.avgRating} /></td>
-                  <td className="px-2">{p.avgDiff.toFixed(1)}/5</td>
-                  <td className="px-2 font-semibold" style={{ color: COLORS.gold }}>{p.avgAdj.toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
-      <div style={{ color: COLORS.chalkDim }} className="text-xs mt-3">
-        Selection index = average rating, weighted up when the opponent's league position made the fixture tougher. Ranks players on who steps up, not just who scores most.
-      </div>
+      {role === "manager" && (
+        <>
+          <Panel style={{ padding: 0 }}>
+            <div className="p-4 pb-2 flex items-center gap-2">
+              <Zap size={15} color={COLORS.gold} />
+              <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider">Selection index — difficulty-adjusted rating</div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ color: COLORS.chalkDim, borderBottom: `1px solid ${COLORS.line}` }} className="text-xs uppercase text-left">
+                    <th className="py-2 px-3">Player</th><th className="px-2">Apps</th><th className="px-2">Avg rating</th><th className="px-2">Avg difficulty faced</th><th className="px-2">Selection index</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rankedForSelection.map((p, i) => (
+                    <tr key={p.id} style={{ borderBottom: `1px solid ${COLORS.line}` }}>
+                      <td className="py-2 px-3 flex items-center gap-2">
+                        <span style={{ color: i < 3 ? COLORS.gold : COLORS.chalkDim, fontFamily: "'JetBrains Mono', monospace" }} className="text-xs w-4">{i+1}</span>
+                        <ShirtBadge number={p.number} size={24} /> {p.name}
+                      </td>
+                      <td className="px-2">{p.apps}</td>
+                      <td className="px-2"><Stars value={p.avgRating} /></td>
+                      <td className="px-2">{p.avgDiff.toFixed(1)}/5</td>
+                      <td className="px-2 font-semibold" style={{ color: COLORS.gold }}>{p.avgAdj.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+          <div style={{ color: COLORS.chalkDim }} className="text-xs mt-3">
+            Selection index = average rating, weighted up when the opponent's league position made the fixture tougher. Ranks players on who steps up, not just who scores most.
+          </div>
+        </>
+      )}
     </div>
   );
 }
