@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Users, CalendarDays, ClipboardCheck, Shirt, Trophy, TrendingUp,
-  BarChart3, Star, Plus, X, RefreshCw, ChevronRight, Target, Zap, Download,
-  LogIn, ShieldCheck, Info
+  BarChart3, Star, Plus, X, RefreshCw, ChevronRight, ChevronLeft, Target, Zap, Download,
+  LogIn, ShieldCheck, Info, Wallet, MessageCircle
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -16,6 +16,7 @@ import {
   saveAvailability,
   saveFixture,
   saveLineup,
+  savePayment,
   savePlayer,
   saveResult as saveResultToDatabase,
 } from "./lib/database";
@@ -49,6 +50,8 @@ const FORMATION = [
   { key: "RW", label: "RW", top: 20, left: 85 },
 ];
 
+const MANAGER_ONLY_TABS = ["lineups", "subs"];
+
 const TOTAL_TEAMS = 12;
 const ACTIVE_PLAYER_STORAGE_KEY = "wbk-active-player-id";
 
@@ -81,6 +84,36 @@ function toInputDate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function formatShortDate(date) {
+  return new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "2-digit", year: "2-digit" });
+}
+
+// Resolved against the current page rather than a hardcoded host, so this keeps working
+// whichever domain/org GitHub Pages serves the app from (same approach as the calendar link).
+function getSiteUrl() {
+  return window.location.href.split(/[?#]/)[0];
+}
+
+function monthKey(offsetFromToday) {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + offsetFromToday);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+// Locked from the Friday before a Sunday fixture onward — self-service edits close to
+// a game go through the manager instead, so a panicked last-minute drop-out isn't silent.
+function isAvailabilityLocked(date) {
+  const cutoff = new Date(`${date}T00:00:00`);
+  cutoff.setDate(cutoff.getDate() - 2);
+  return new Date() >= cutoff;
+}
+
+function monthLabel(period) {
+  const [year, month] = period.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+}
+
 function getSundaysBetween(fromStr, toStr) {
   if (!fromStr || !toStr) return [];
   const start = new Date(`${fromStr}T00:00:00`);
@@ -110,6 +143,49 @@ function Badge({ children, color = COLORS.gold, subtle }) {
     >
       {children}
     </span>
+  );
+}
+
+function WhatsAppChaseButton({ buildMessage, disabled, label = "Send WhatsApp" }) {
+  const [copied, setCopied] = useState(false);
+  function handleClick() {
+    navigator.clipboard?.writeText(buildMessage()).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    }).catch(() => {});
+  }
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={handleClick}
+      style={{ background: COLORS.sky, color: COLORS.bg, opacity: disabled ? 0.5 : 1 }}
+      className="text-[11px] font-semibold px-2 py-1 rounded-md flex items-center gap-1 whitespace-nowrap"
+    >
+      <MessageCircle size={12} /> {copied ? "Copied!" : label}
+    </button>
+  );
+}
+
+function Modal({ title, onClose, children }) {
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "#0A0D1CAA", zIndex: 50 }}
+      className="flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, maxWidth: 420, width: "100%", maxHeight: "80vh" }}
+        className="rounded-xl p-5 overflow-y-auto"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div style={{ color: COLORS.chalk }} className="text-sm font-semibold">{title}</div>
+          <button type="button" onClick={onClose} style={{ color: COLORS.chalkDim }}><X size={16} /></button>
+        </div>
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -353,6 +429,7 @@ export default function App() {
   const [results, setResults] = useState({});
   const [availability, setAvailability] = useState({});
   const [lineups, setLineups] = useState({});
+  const [payments, setPayments] = useState({});
   const [dataReady, setDataReady] = useState(false);
   const [dataError, setDataError] = useState("");
   const [tab, setTab] = useState("dashboard");
@@ -377,6 +454,7 @@ export default function App() {
         setFixtures(data.fixtures);
         setAvailability(data.availability);
         setLineups(data.lineups);
+        setPayments(data.payments);
         setResults(data.results);
         setLeagueTable(data.leagueTable);
         setLineupFixtureId(data.fixtures.find(f => f.status === "upcoming")?.id || null);
@@ -551,6 +629,12 @@ export default function App() {
     void saveAvailability(date, playerId, val).catch(reportSaveError);
   }
 
+  function setPaymentStatus(period, playerId, status) {
+    const next = { ...payments, [period]: { ...(payments[period] || {}), [playerId]: status } };
+    setPayments(next);
+    void savePayment(period, playerId, status).catch(reportSaveError);
+  }
+
   function assignSlot(fixtureId, slotKey, playerId) {
     const current = lineups[fixtureId] || { starters: {}, subs: [] };
     const starters = { ...current.starters };
@@ -592,6 +676,7 @@ export default function App() {
     { key: "fixtures", label: "Fixtures", icon: CalendarDays },
     { key: "availability", label: "Availability", icon: ClipboardCheck },
     { key: "lineups", label: "Matchday Squads", icon: Shirt },
+    { key: "subs", label: "Subs", icon: Wallet },
     { key: "results", label: "Results & Ratings", icon: Target },
     { key: "league", label: "League Table", icon: Trophy },
     { key: "analysis", label: "Analysis", icon: BarChart3 },
@@ -626,7 +711,7 @@ export default function App() {
             </div>
           </div>
           <nav className="flex flex-col gap-1">
-            {navItems.filter(item => item.key !== "lineups" || role === "manager").map(item => {
+            {navItems.filter(item => !MANAGER_ONLY_TABS.includes(item.key) || role === "manager").map(item => {
               const Icon = item.icon;
               const active = tab === item.key;
               return (
@@ -700,7 +785,7 @@ export default function App() {
             style={{ background: COLORS.panel, borderBottom: `1px solid ${COLORS.line}` }}
             className="md:hidden flex gap-1 overflow-x-auto px-3 py-2"
           >
-            {navItems.filter(item => item.key !== "lineups" || role === "manager").map(item => {
+            {navItems.filter(item => !MANAGER_ONLY_TABS.includes(item.key) || role === "manager").map(item => {
               const Icon = item.icon;
               const active = tab === item.key;
               return (
@@ -739,7 +824,8 @@ export default function App() {
 
             {tab === "fixtures" && (
               <FixturesTab
-                fixtures={fixtures} fixtureForm={fixtureForm} setFixtureForm={setFixtureForm}
+                fixtures={fixtures} players={players} availability={availability}
+                fixtureForm={fixtureForm} setFixtureForm={setFixtureForm}
                 addFixture={addFixture} role={role}
                 refreshFixtures={refreshFixtures} fixturesLoading={fixturesLoading}
               />
@@ -758,6 +844,10 @@ export default function App() {
                 lineups={lineups} lineupFixtureId={lineupFixtureId} setLineupFixtureId={setLineupFixtureId}
                 assignSlot={assignSlot} toggleSub={toggleSub} selectCaptain={selectCaptain} role={role}
               />
+            )}
+
+            {tab === "subs" && (
+              <SubsTab players={players} payments={payments} setPaymentStatus={setPaymentStatus} role={role} />
             )}
 
             {tab === "results" && (
@@ -954,8 +1044,16 @@ function PlayerCard({ p, role, updatePlayer }) {
 }
 
 // ---------- Fixtures ----------
-function FixturesTab({ fixtures, fixtureForm, setFixtureForm, addFixture, role, refreshFixtures, fixturesLoading }) {
+const AVAILABILITY_STATUS_GROUPS = [
+  { key: "yes", label: "In", color: COLORS.green },
+  { key: "no", label: "Out", color: COLORS.clay },
+  { key: "maybe", label: "Maybe", color: COLORS.gold },
+  { key: "unset", label: "Yet to decide", color: COLORS.chalkDim },
+];
+
+function FixturesTab({ fixtures, players, availability, fixtureForm, setFixtureForm, addFixture, role, refreshFixtures, fixturesLoading }) {
   const [calendarCopied, setCalendarCopied] = useState(false);
+  const [modal, setModal] = useState(null);
   const sorted = [...fixtures].sort((a,b)=>a.date === "TBC" ? 1 : b.date === "TBC" ? -1 : a.date.localeCompare(b.date));
   const lastScraped = fixtures.reduce((latest, f) => (f.scrapedAt && (!latest || f.scrapedAt > latest) ? f.scrapedAt : latest), null);
 
@@ -1025,11 +1123,33 @@ function FixturesTab({ fixtures, fixtureForm, setFixtureForm, addFixture, role, 
       )}
       <div className="flex flex-col gap-2">
         {sorted.map(f => {
+          const fixtureDateKey = dateKey(f.date);
+          const groups = role === "manager" && fixtureDateKey
+            ? AVAILABILITY_STATUS_GROUPS.map(g => ({
+                ...g,
+                players: players.filter(p => (availability[fixtureDateKey]?.[p.id] || "unset") === g.key),
+              }))
+            : [];
           return (
             <Panel key={f.id} className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <div className="text-sm font-semibold">{f.homeTeam} <span style={{ color: COLORS.chalkDim }}>vs</span> {f.awayTeam}</div>
                 <div style={{ color: COLORS.chalkDim }} className="text-xs mt-0.5">{formatFixtureDate(f.date)} · {f.venue} · {f.competition} · {f.type}</div>
+                {groups.length > 0 && (
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    {groups.map(g => (
+                      <button
+                        key={g.key}
+                        type="button"
+                        onClick={() => setModal({ fixture: f, group: g })}
+                        style={{ color: g.color, border: `1px solid ${g.color}55` }}
+                        className="text-[11px] px-2 py-1 rounded-md flex items-center gap-1"
+                      >
+                        {g.label} <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{g.players.length}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Badge subtle color={f.status === "played" ? COLORS.sky : COLORS.chalkDim}>{f.status}</Badge>
@@ -1038,11 +1158,62 @@ function FixturesTab({ fixtures, fixtureForm, setFixtureForm, addFixture, role, 
           );
         })}
       </div>
+      {modal && (
+        <Modal title={`${modal.group.label} · ${modal.fixture.opponent}`} onClose={() => setModal(null)}>
+          <div className="flex flex-col gap-1">
+            {modal.group.players.map(p => (
+              <div key={p.id} className="flex items-center gap-2 text-sm py-1" style={{ borderTop: `1px solid ${COLORS.line}` }}>
+                <ShirtBadge number={p.number} size={22} /> {p.name}
+              </div>
+            ))}
+            {modal.group.players.length === 0 && <div style={{ color: COLORS.chalkDim }} className="text-sm">None</div>}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 
 // ---------- Availability ----------
+function AvailabilityRow({ p, date, val, locked, setAvail }) {
+  const [notice, setNotice] = useState(false);
+
+  function handleClick(opt) {
+    if (locked) {
+      setNotice(true);
+      setTimeout(() => setNotice(false), 6000);
+      return;
+    }
+    setAvail(date, p.id, opt);
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between text-sm py-1" style={{ borderTop: `1px solid ${COLORS.line}` }}>
+        <div className="flex items-center gap-2"><ShirtBadge number={p.number} size={24} /> {p.name}</div>
+        <div className="flex gap-1">
+          {["yes", "maybe", "no"].map(opt => {
+            const active = val === opt;
+            const c = opt === "yes" ? COLORS.green : opt === "maybe" ? COLORS.gold : COLORS.clay;
+            return (
+              <button key={opt} onClick={() => handleClick(opt)}
+                style={{ background: active ? c + "33" : "transparent", border: `1px solid ${active ? c : COLORS.line}`, color: active ? c : COLORS.chalkDim }}
+                className="text-[11px] px-2 py-1 rounded-md capitalize">
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {notice && (
+        <div style={{ color: COLORS.clay }} className="text-xs pb-1.5">
+          You can't change availability so close to a game. You can try explain this move to Luke personally.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AvailabilityTab({ fixtures, players, availability, setAvail, role, activePlayerId }) {
   const [from, setFrom] = useState(() => toInputDate(new Date()));
   const [to, setTo] = useState(() => {
@@ -1092,7 +1263,7 @@ function AvailabilityTab({ fixtures, players, availability, setAvail, role, acti
             <Panel key={date}>
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <div className="text-sm font-semibold">
-                  {new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "2-digit", year: "2-digit" })}
+                  {formatShortDate(date)}
                   {fixture && <span style={{ color: COLORS.chalkDim, fontWeight: 400 }}> · {fixture.opponent}</span>}
                 </div>
                 {fixture ? (
@@ -1104,24 +1275,8 @@ function AvailabilityTab({ fixtures, players, availability, setAvail, role, acti
               <div className="flex flex-col gap-1.5">
                 {relevantPlayers.map(p => {
                   const val = availability[date]?.[p.id] || "unset";
-                  return (
-                    <div key={p.id} className="flex items-center justify-between text-sm py-1" style={{ borderTop: `1px solid ${COLORS.line}` }}>
-                      <div className="flex items-center gap-2"><ShirtBadge number={p.number} size={24} /> {p.name}</div>
-                      <div className="flex gap-1">
-                        {["yes", "maybe", "no"].map(opt => {
-                          const active = val === opt;
-                          const c = opt === "yes" ? COLORS.green : opt === "maybe" ? COLORS.gold : COLORS.clay;
-                          return (
-                            <button key={opt} onClick={() => setAvail(date, p.id, opt)}
-                              style={{ background: active ? c + "33" : "transparent", border: `1px solid ${active ? c : COLORS.line}`, color: active ? c : COLORS.chalkDim }}
-                              className="text-[11px] px-2 py-1 rounded-md capitalize">
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
+                  const locked = role === "player" && isAvailabilityLocked(date);
+                  return <AvailabilityRow key={p.id} p={p} date={date} val={val} locked={locked} setAvail={setAvail} />;
                 })}
               </div>
             </Panel>
@@ -1220,7 +1375,7 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
           </div>
         </Panel>
         <Panel>
-          <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-3">Available squad · yes only</div>
+          <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-3">Available squad · yes only · {availableIds.length}</div>
           <div className="flex flex-col gap-1 max-h-[420px] overflow-y-auto pr-1">
             {players.filter(p => availableIds.includes(p.id)).map(p => {
               const inSub = current.subs.includes(p.id);
@@ -1250,6 +1405,130 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
           </div>
         </Panel>
       </div>
+
+      <Panel className="mt-4">
+        <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-3">Availability breakdown</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { key: "yes", label: "Available", color: COLORS.green },
+            { key: "maybe", label: "Maybe", color: COLORS.gold },
+            { key: "no", label: "Not available", color: COLORS.clay },
+            { key: "unset", label: "No response", color: COLORS.chalkDim },
+          ].map(({ key, label, color }) => {
+            const group = players.filter(p => (availability[fixtureDateKey]?.[p.id] || "unset") === key);
+            return (
+              <div key={key}>
+                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                  <Badge color={color}>{label} · {group.length}</Badge>
+                  {key === "unset" && (
+                    <WhatsAppChaseButton
+                      disabled={group.length === 0}
+                      buildMessage={() => `Chasing availability for ${fixture.opponent} game on ${formatShortDate(fixtureDateKey)} for the following players: ${group.map(p => p.name).join(", ")}. Please log on here and set availability asap: ${getSiteUrl()}`}
+                    />
+                  )}
+                </div>
+                <div className="flex flex-col gap-1">
+                  {group.map(p => (
+                    <div key={p.id} className="flex items-center gap-2 text-sm py-0.5">
+                      <ShirtBadge number={p.number} size={20} /> {p.name}
+                    </div>
+                  ))}
+                  {group.length === 0 && <div style={{ color: COLORS.chalkDim }} className="text-xs">None</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ---------- Subs ----------
+function SubsTab({ players, payments, setPaymentStatus, role }) {
+  const [monthOffset, setMonthOffset] = useState(0);
+
+  if (role !== "manager") return <div><SectionHeading eyebrow="Manager access" title="Subs" /><Panel><div style={{ color: COLORS.chalkDim }}>Subs tracking is available to managers only.</div></Panel></div>;
+
+  const months = [monthOffset - 1, monthOffset, monthOffset + 1].map(monthKey);
+  const columns = [
+    { period: "sign_on", label: "Sign-on fee" },
+    ...months.map(period => ({ period, label: monthLabel(period) })),
+  ];
+
+  return (
+    <div>
+      <SectionHeading
+        eyebrow="Manager access"
+        title="Subs"
+        right={
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setMonthOffset(o => o - 1)}
+              style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
+              className="p-1.5 rounded-md"><ChevronLeft size={16} /></button>
+            <button type="button" onClick={() => setMonthOffset(o => o + 1)}
+              style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
+              className="p-1.5 rounded-md"><ChevronRight size={16} /></button>
+          </div>
+        }
+      />
+      <Panel style={{ overflowX: "auto" }}>
+        <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th className="text-left pb-2 pr-3" style={{ color: COLORS.chalkDim, fontWeight: 500 }}>Player</th>
+              {columns.map(col => {
+                const unpaid = players.filter(p => (payments[col.period]?.[p.id] || "unpaid") === "unpaid");
+                return (
+                  <th key={col.period} className="text-left pb-2 px-3" style={{ color: COLORS.chalkDim, fontWeight: 500, minWidth: 160 }}>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span>{col.label}</span>
+                      <WhatsAppChaseButton
+                        disabled={unpaid.length === 0}
+                        buildMessage={() => col.period === "sign_on"
+                          ? `Chasing the sign-on fee for the following players: ${unpaid.map(p => p.name).join(", ")}. Please sort this ASAP, thanks.`
+                          : `Chasing ${col.label} subs payment for the following players: ${unpaid.map(p => p.name).join(", ")}. Please sort this ASAP, thanks.`}
+                      />
+                    </div>
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {players.map(p => (
+              <tr key={p.id} style={{ borderTop: `1px solid ${COLORS.line}` }}>
+                <td className="py-2 pr-3">
+                  <div className="flex items-center gap-2"><ShirtBadge number={p.number} size={24} /> {p.name}</div>
+                </td>
+                {columns.map(col => {
+                  const val = payments[col.period]?.[p.id] || "unpaid";
+                  return (
+                    <td key={col.period} className="py-2 px-3">
+                      <div className="flex gap-1">
+                        {["paid", "unpaid"].map(opt => {
+                          const active = val === opt;
+                          const c = opt === "paid" ? COLORS.green : COLORS.clay;
+                          return (
+                            <button key={opt} onClick={() => setPaymentStatus(col.period, p.id, opt)}
+                              style={{ background: active ? c + "33" : "transparent", border: `1px solid ${active ? c : COLORS.line}`, color: active ? c : COLORS.chalkDim }}
+                              className="text-[11px] px-2 py-1 rounded-md capitalize">
+                              {opt}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+            {players.length === 0 && (
+              <tr><td colSpan={columns.length + 1} className="py-3 text-sm" style={{ color: COLORS.chalkDim }}>No players registered yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </Panel>
     </div>
   );
 }

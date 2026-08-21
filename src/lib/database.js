@@ -52,12 +52,13 @@ function fixtureFromRow(row) {
 }
 
 export async function loadAppData() {
-  const [players, fixtures, availabilityRows, lineupRows, resultRows, leagueTable] = await Promise.all([
+  const [players, fixtures, availabilityRows, lineupRows, resultRows, paymentRows, leagueTable] = await Promise.all([
     selectAll("players", "number"),
     selectAll("fixtures", "date"),
     selectAll("availability"),
     selectAll("lineups"),
     selectAll("results"),
+    selectAll("payments"),
     selectAll("league_table", "pos"),
   ]);
 
@@ -68,6 +69,10 @@ export async function loadAppData() {
     availability: availabilityRows.reduce((all, row) => ({
       ...all,
       [row.date]: { ...(all[row.date] || {}), [row.player_id]: row.status },
+    }), {}),
+    payments: paymentRows.reduce((all, row) => ({
+      ...all,
+      [row.period]: { ...(all[row.period] || {}), [row.player_id]: row.status },
     }), {}),
     lineups: lineupRows.reduce((all, row) => ({
       ...all,
@@ -99,6 +104,10 @@ export async function saveFixture(fixture) {
 
 export async function saveAvailability(date, playerId, status) {
   await upsertRows("availability", [{ date, player_id: playerId, status }]);
+}
+
+export async function savePayment(period, playerId, status) {
+  await upsertRows("payments", [{ period, player_id: playerId, status }]);
 }
 
 export async function saveLineup(fixtureId, lineup) {
