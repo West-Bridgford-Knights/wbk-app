@@ -1639,8 +1639,11 @@ function PitchAvailabilityTab({ fixtures, pitchAvailability, role }) {
                         {slotStarts.length === 0 && <Badge color={COLORS.chalkDim}>10:00–12:00 · Not checked yet</Badge>}
                         {slotStarts.map(slot => {
                           const entry = slots[slot];
-                          const color = entry.available ? COLORS.green : COLORS.clay;
-                          const text = entry.available ? "Available" : "Booked";
+                          // "schedule/bounds" means the venue just hasn't opened booking that
+                          // far ahead yet — not the same as an already-booked slot.
+                          const notOpenYet = !entry.available && entry.blockReason === "schedule/bounds";
+                          const color = entry.available ? COLORS.green : notOpenYet ? COLORS.chalkDim : COLORS.clay;
+                          const text = entry.available ? "Available" : notOpenYet ? "Not open to book yet" : "Booked";
                           return <Badge key={slot} color={color}>{slot} · {text}</Badge>;
                         })}
                         <a

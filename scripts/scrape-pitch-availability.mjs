@@ -11,12 +11,16 @@ const execFileAsync = promisify(execFile);
 const PB_API_URL = "https://api.pitchbooking.com";
 const PB_API_KEY = "1ag1Qg45a.d80161e2b6d5de787066e2665c42d2cd433c104e";
 
-// The specific pitches we check for home fixtures. Add/remove ids here as the venues we
-// book change.
-const FACILITY_IDS = [
-  "d3bc83f0-a754-40a9-ba16-d7e31e00252d", // Gresham Sports Park - ATP2 (Quarters)
-  "36379e04-3e64-4a9c-b3c5-7b46be11db82", // Gresham Sports Park - ATP1 (Thirds)
-  "df95c884-396b-4d02-9719-4afaad1c1563", // Rushcliffe - 3G Floodlit Pitches (Bottom)
+// The specific pitches we check for home fixtures. Add/remove entries here as the venues
+// we book change. pitchSplit is how many of the facility's sub-divisions we need — the two
+// Gresham ids are already the specific quarter/third product, so 1 means "this whole
+// facility". Rushcliffe's facility is the combinable parent (quantity: 4 junior quarters,
+// its own description says "2/4 = one half (adults)"), so getting the full adult-size pitch
+// means requesting all 4, not 1 (which would only check a single junior quarter).
+const FACILITIES = [
+  { id: "d3bc83f0-a754-40a9-ba16-d7e31e00252d", pitchSplit: 1 }, // Gresham Sports Park - ATP2 (Quarters)
+  { id: "36379e04-3e64-4a9c-b3c5-7b46be11db82", pitchSplit: 1 }, // Gresham Sports Park - ATP1 (Thirds)
+  { id: "df95c884-396b-4d02-9719-4afaad1c1563", pitchSplit: 4 }, // Rushcliffe - 3G Floodlit Pitches (Bottom), full pitch
 ];
 
 const CLUB_NAME = "West Bridgford Knights F.C.";
@@ -36,10 +40,10 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 
 // api.pitchbooking.com sits behind Cloudflare, same as the FA site — shell out to curl
 // rather than fetch() for the same TLS-fingerprint reason as the other scrapers.
-async function fetchWeekAvailability(facilityId, anyDateInWeek) {
+async function fetchWeekAvailability(facilityId, pitchSplit, anyDateInWeek) {
   const url =
     `${PB_API_URL}/api/facilities/${facilityId}/availability` +
-    `?start_date=${anyDateInWeek}&pitch_split=1&day_range=7&sub_facility_id=&selectedDuration=`;
+    `?start_date=${anyDateInWeek}&pitch_split=${pitchSplit}&day_range=7&sub_facility_id=&selectedDuration=`;
   const { stdout } = await execFileAsync(
     "curl",
     [
@@ -106,9 +110,9 @@ async function main() {
   const rows = [];
   const checkedAt = new Date().toISOString();
 
-  for (const facilityId of FACILITY_IDS) {
+  for (const { id: facilityId, pitchSplit } of FACILITIES) {
     for (const weekStart of weeksToFetch) {
-      const week = await fetchWeekAvailability(facilityId, weekStart);
+      const week = await fetchWeekAvailability(facilityId, pitchSplit, weekStart);
 
       for (const daySlots of Object.values(week.availableTimeSlotsForWeekByDay)) {
         for (const slot of daySlots) {
@@ -137,7 +141,7 @@ async function main() {
   const { error: upsertError } = await supabase.from("pitch_availability").upsert(rows);
   if (upsertError) throw upsertError;
 
-  console.log(`Checked ${FACILITY_IDS.length} pitch(es) for ${targetDates.length} fixture date(s), stored ${rows.length} slot rows.`);
+  console.log(`Checked ${FACILITIES.length} pitch(es) for ${targetDates.length} fixture date(s), stored ${rows.length} slot rows.`);
 }
 
 main().catch((error) => {
