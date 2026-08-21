@@ -74,9 +74,13 @@ create table if not exists public.results (
 create table if not exists public.payments (
   period text not null,
   player_id text not null references public.players(id) on delete cascade,
-  status text not null check (status in ('paid', 'unpaid')) default 'unpaid',
+  status text not null check (status in ('paid', 'unpaid', 'excluded')) default 'unpaid',
   primary key (period, player_id)
 );
+
+-- Widen the status check for installs created before "excluded" existed.
+alter table public.payments drop constraint if exists payments_status_check;
+alter table public.payments add constraint payments_status_check check (status in ('paid', 'unpaid', 'excluded'));
 
 create table if not exists public.league_table (
   team text primary key,

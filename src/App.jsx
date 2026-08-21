@@ -1551,9 +1551,9 @@ function SubsTab({ players, payments, setPaymentStatus, role }) {
                     return (
                       <td key={col.period} className="py-2 px-3" style={{ borderTop: `1px solid ${COLORS.line}` }}>
                         <div className="flex gap-1">
-                          {["paid", "unpaid"].map(opt => {
+                          {["paid", "unpaid", "excluded"].map(opt => {
                             const active = val === opt;
-                            const c = opt === "paid" ? COLORS.green : COLORS.clay;
+                            const c = opt === "paid" ? COLORS.green : opt === "unpaid" ? COLORS.clay : COLORS.chalkDim;
                             return (
                               <button key={opt} onClick={() => setPaymentStatus(col.period, p.id, opt)}
                                 style={{ background: active ? c + "33" : "transparent", border: `1px solid ${active ? c : COLORS.line}`, color: active ? c : COLORS.chalkDim }}
