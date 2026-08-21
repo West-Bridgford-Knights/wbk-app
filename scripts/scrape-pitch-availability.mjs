@@ -16,6 +16,7 @@ const PB_API_KEY = "1ag1Qg45a.d80161e2b6d5de787066e2665c42d2cd433c104e";
 const FACILITY_IDS = [
   "d3bc83f0-a754-40a9-ba16-d7e31e00252d", // Gresham Sports Park - ATP2 (Quarters)
   "36379e04-3e64-4a9c-b3c5-7b46be11db82", // Gresham Sports Park - ATP1 (Thirds)
+  "df95c884-396b-4d02-9719-4afaad1c1563", // Rushcliffe - 3G Floodlit Pitches (Bottom)
 ];
 
 const CLUB_NAME = "West Bridgford Knights F.C.";

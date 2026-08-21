@@ -1590,10 +1590,7 @@ function SubsTab({ players, payments, setPaymentStatus, role }) {
 const PITCH_FACILITIES = [
   { id: "d3bc83f0-a754-40a9-ba16-d7e31e00252d", label: "Gresham Sports Park — ATP2 (Quarters)" },
   { id: "36379e04-3e64-4a9c-b3c5-7b46be11db82", label: "Gresham Sports Park — ATP1 (Thirds)" },
-];
-const PITCH_WATCHED_SLOTS = [
-  { slot: "10:00", label: "10:00–11:00" },
-  { slot: "11:00", label: "11:00–12:00" },
+  { id: "df95c884-396b-4d02-9719-4afaad1c1563", label: "Rushcliffe — 3G Floodlit Pitches (Bottom)" },
 ];
 
 function PitchAvailabilityTab({ fixtures, pitchAvailability, role }) {
@@ -1625,6 +1622,9 @@ function PitchAvailabilityTab({ fixtures, pitchAvailability, role }) {
                   const slots = dateStr ? pitchAvailability[facility.id]?.[dateStr] : null;
                   const checkedAt = slots && Object.values(slots).find(s => s.checkedAt)?.checkedAt;
                   const label = Object.values(slots || {})[0]?.facilityName || facility.label;
+                  // Some facilities only offer bookings on the hour, others every 15 minutes —
+                  // show whichever start times actually came back rather than a fixed pair.
+                  const slotStarts = slots ? Object.keys(slots).sort() : [];
                   return (
                     <div key={facility.id} className="flex items-center justify-between flex-wrap gap-2 py-1.5" style={{ borderTop: `1px solid ${COLORS.line}` }}>
                       <div>
@@ -1636,11 +1636,12 @@ function PitchAvailabilityTab({ fixtures, pitchAvailability, role }) {
                         )}
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        {PITCH_WATCHED_SLOTS.map(({ slot, label: slotLabel }) => {
-                          const entry = slots?.[slot];
-                          const color = !entry ? COLORS.chalkDim : entry.available ? COLORS.green : COLORS.clay;
-                          const text = !entry ? "Not checked yet" : entry.available ? "Available" : "Booked";
-                          return <Badge key={slot} color={color}>{slotLabel} · {text}</Badge>;
+                        {slotStarts.length === 0 && <Badge color={COLORS.chalkDim}>10:00–12:00 · Not checked yet</Badge>}
+                        {slotStarts.map(slot => {
+                          const entry = slots[slot];
+                          const color = entry.available ? COLORS.green : COLORS.clay;
+                          const text = entry.available ? "Available" : "Booked";
+                          return <Badge key={slot} color={color}>{slot} · {text}</Badge>;
                         })}
                         <a
                           href={`https://pitchbooking.com/book/facility/${facility.id}`} target="_blank" rel="noreferrer"
