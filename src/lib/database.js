@@ -52,13 +52,14 @@ function fixtureFromRow(row) {
 }
 
 export async function loadAppData() {
-  const [players, fixtures, availabilityRows, lineupRows, resultRows, paymentRows, leagueTable] = await Promise.all([
+  const [players, fixtures, availabilityRows, lineupRows, resultRows, paymentRows, pitchAvailabilityRows, leagueTable] = await Promise.all([
     selectAll("players", "number"),
     selectAll("fixtures", "date"),
     selectAll("availability"),
     selectAll("lineups"),
     selectAll("results"),
     selectAll("payments"),
+    selectAll("pitch_availability"),
     selectAll("league_table", "pos"),
   ]);
 
@@ -73,6 +74,13 @@ export async function loadAppData() {
     payments: paymentRows.reduce((all, row) => ({
       ...all,
       [row.period]: { ...(all[row.period] || {}), [row.player_id]: row.status },
+    }), {}),
+    pitchAvailability: pitchAvailabilityRows.reduce((all, row) => ({
+      ...all,
+      [row.date]: {
+        ...(all[row.date] || {}),
+        [row.slot_start]: { available: row.available, blockReason: row.block_reason, facilityName: row.facility_name, checkedAt: row.checked_at },
+      },
     }), {}),
     lineups: lineupRows.reduce((all, row) => ({
       ...all,

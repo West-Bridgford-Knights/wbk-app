@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "scrape:league": "node --env-file=.env scripts/scrape-league-table.mjs",
     "scrape:fixtures": "node --env-file=.env scripts/scrape-fixtures.mjs",
+    "scrape:pitch-availability": "node --env-file=.env scripts/scrape-pitch-availability.mjs",
     "generate:ics": "node --env-file=.env scripts/generate-fixtures-ics.mjs"
   },
   "dependencies": {

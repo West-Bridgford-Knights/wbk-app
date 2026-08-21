@@ -29,6 +29,17 @@ try {
 }
 
 try {
+    $output = npm run scrape:pitch-availability 2>&1 | Out-String
+    $output | Out-File -FilePath $logFile -Append -Encoding utf8
+    if ($LASTEXITCODE -ne 0) {
+        throw "scrape:pitch-availability exited with code $LASTEXITCODE"
+    }
+    "[$timestamp] Pitch availability check finished successfully" | Out-File -FilePath $logFile -Append -Encoding utf8
+} catch {
+    "[$timestamp] ERROR: $_" | Out-File -FilePath $logFile -Append -Encoding utf8
+}
+
+try {
     $output = npm run generate:ics 2>&1 | Out-String
     $output | Out-File -FilePath $logFile -Append -Encoding utf8
     if ($LASTEXITCODE -ne 0) {

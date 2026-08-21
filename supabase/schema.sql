@@ -82,6 +82,16 @@ create table if not exists public.payments (
 alter table public.payments drop constraint if exists payments_status_check;
 alter table public.payments add constraint payments_status_check check (status in ('paid', 'unpaid', 'excluded'));
 
+create table if not exists public.pitch_availability (
+  date date not null,
+  slot_start text not null,
+  facility_name text,
+  available boolean not null,
+  block_reason text,
+  checked_at timestamptz not null default now(),
+  primary key (date, slot_start)
+);
+
 create table if not exists public.league_table (
   team text primary key,
   pos integer not null,
@@ -100,6 +110,7 @@ alter table public.availability enable row level security;
 alter table public.lineups enable row level security;
 alter table public.results enable row level security;
 alter table public.payments enable row level security;
+alter table public.pitch_availability enable row level security;
 alter table public.league_table enable row level security;
 
 drop policy if exists "Public team app can read players" on public.players;
@@ -114,6 +125,8 @@ drop policy if exists "Public team app can read results" on public.results;
 drop policy if exists "Public team app can write results" on public.results;
 drop policy if exists "Public team app can read payments" on public.payments;
 drop policy if exists "Public team app can write payments" on public.payments;
+drop policy if exists "Public team app can read pitch_availability" on public.pitch_availability;
+drop policy if exists "Public team app can write pitch_availability" on public.pitch_availability;
 drop policy if exists "Public team app can read league_table" on public.league_table;
 drop policy if exists "Public team app can write league_table" on public.league_table;
 
@@ -129,5 +142,7 @@ create policy "Public team app can read results" on public.results for select to
 create policy "Public team app can write results" on public.results for all to anon, authenticated using (true) with check (true);
 create policy "Public team app can read payments" on public.payments for select to anon, authenticated using (true);
 create policy "Public team app can write payments" on public.payments for all to anon, authenticated using (true) with check (true);
+create policy "Public team app can read pitch_availability" on public.pitch_availability for select to anon, authenticated using (true);
+create policy "Public team app can write pitch_availability" on public.pitch_availability for all to anon, authenticated using (true) with check (true);
 create policy "Public team app can read league_table" on public.league_table for select to anon, authenticated using (true);
 create policy "Public team app can write league_table" on public.league_table for all to anon, authenticated using (true) with check (true);

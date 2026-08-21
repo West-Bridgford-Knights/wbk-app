@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Users, CalendarDays, ClipboardCheck, Shirt, Trophy, TrendingUp,
   BarChart3, Star, Plus, X, RefreshCw, ChevronRight, ChevronLeft, Target, Zap, Download,
-  LogIn, ShieldCheck, Info, Wallet, MessageCircle
+  LogIn, ShieldCheck, Info, Wallet, MessageCircle, MapPin, ExternalLink
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -50,7 +50,7 @@ const FORMATION = [
   { key: "RW", label: "RW", top: 20, left: 85 },
 ];
 
-const MANAGER_ONLY_TABS = ["lineups", "subs"];
+const MANAGER_ONLY_TABS = ["lineups", "subs", "pitch"];
 
 const TOTAL_TEAMS = 12;
 const ACTIVE_PLAYER_STORAGE_KEY = "wbk-active-player-id";
@@ -430,6 +430,7 @@ export default function App() {
   const [availability, setAvailability] = useState({});
   const [lineups, setLineups] = useState({});
   const [payments, setPayments] = useState({});
+  const [pitchAvailability, setPitchAvailability] = useState({});
   const [dataReady, setDataReady] = useState(false);
   const [dataError, setDataError] = useState("");
   const [tab, setTab] = useState("dashboard");
@@ -455,6 +456,7 @@ export default function App() {
         setAvailability(data.availability);
         setLineups(data.lineups);
         setPayments(data.payments);
+        setPitchAvailability(data.pitchAvailability);
         setResults(data.results);
         setLeagueTable(data.leagueTable);
         setLineupFixtureId(data.fixtures.find(f => f.status === "upcoming")?.id || null);
@@ -697,6 +699,7 @@ export default function App() {
     { key: "availability", label: "Availability", icon: ClipboardCheck },
     { key: "lineups", label: "Matchday Squads", icon: Shirt },
     { key: "subs", label: "Subs", icon: Wallet },
+    { key: "pitch", label: "Pitch Availability", icon: MapPin },
     { key: "results", label: "Results & Ratings", icon: Target },
     { key: "league", label: "League Table", icon: Trophy },
     { key: "analysis", label: "Analysis", icon: BarChart3 },
@@ -868,6 +871,10 @@ export default function App() {
 
             {tab === "subs" && (
               <SubsTab players={activePlayers} payments={payments} setPaymentStatus={setPaymentStatus} role={role} />
+            )}
+
+            {tab === "pitch" && (
+              <PitchAvailabilityTab fixtures={upcoming} pitchAvailability={pitchAvailability} role={role} />
             )}
 
             {tab === "results" && (
@@ -1575,6 +1582,75 @@ function SubsTab({ players, payments, setPaymentStatus, role }) {
           </table>
         </div>
       </Panel>
+    </div>
+  );
+}
+
+// ---------- Pitch availability ----------
+const PITCHBOOKING_FACILITY_URL = "https://pitchbooking.com/book/facility/d3bc83f0-a754-40a9-ba16-d7e31e00252d";
+const PITCH_WATCHED_SLOTS = [
+  { slot: "10:00", label: "10:00–11:00" },
+  { slot: "11:00", label: "11:00–12:00" },
+];
+
+function PitchAvailabilityTab({ fixtures, pitchAvailability, role }) {
+  if (role !== "manager") return <div><SectionHeading eyebrow="Manager access" title="Pitch Availability" /><Panel><div style={{ color: COLORS.chalkDim }}>Pitch availability is available to managers only.</div></Panel></div>;
+
+  const homeFixtures = [...fixtures]
+    .filter(f => f.homeTeam?.startsWith("West Bridgford"))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  return (
+    <div>
+      <SectionHeading
+        eyebrow="Home fixtures · 10am–12pm"
+        title="Pitch Availability"
+        right={
+          <a
+            href={PITCHBOOKING_FACILITY_URL} target="_blank" rel="noreferrer"
+            style={{ background: COLORS.gold, color: COLORS.bg }}
+            className="text-xs font-semibold px-3 py-2 rounded-md flex items-center gap-1.5"
+          >
+            Book on Pitchbooking <ExternalLink size={13} />
+          </a>
+        }
+      />
+      <Panel className="mb-4">
+        <div style={{ color: COLORS.chalkDim }} className="text-sm">
+          Checked automatically once a day against the club's Pitchbooking page for each upcoming home fixture. Booking itself still happens on their site — this just flags whether the slot looks free.
+        </div>
+      </Panel>
+      <div className="flex flex-col gap-2">
+        {homeFixtures.map(f => {
+          const dateStr = dateKey(f.date);
+          const slots = dateStr ? pitchAvailability[dateStr] : null;
+          const checkedAt = slots && Object.values(slots).find(s => s.checkedAt)?.checkedAt;
+          return (
+            <Panel key={f.id} className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <div className="text-sm font-semibold">vs {f.opponent}</div>
+                <div style={{ color: COLORS.chalkDim }} className="text-xs mt-0.5">{formatFixtureDate(f.date)}</div>
+                {checkedAt && (
+                  <div style={{ color: COLORS.chalkDim }} className="text-[11px] mt-1">
+                    Checked {new Date(checkedAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {PITCH_WATCHED_SLOTS.map(({ slot, label }) => {
+                  const entry = slots?.[slot];
+                  const color = !entry ? COLORS.chalkDim : entry.available ? COLORS.green : COLORS.clay;
+                  const text = !entry ? "Not checked yet" : entry.available ? "Available" : "Booked";
+                  return <Badge key={slot} color={color}>{label} · {text}</Badge>;
+                })}
+              </div>
+            </Panel>
+          );
+        })}
+        {homeFixtures.length === 0 && (
+          <Panel><div style={{ color: COLORS.chalkDim }} className="text-sm">No upcoming home fixtures.</div></Panel>
+        )}
+      </div>
     </div>
   );
 }
