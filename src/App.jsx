@@ -523,17 +523,20 @@ export default function App() {
         d.minutes += s.min;
         d.ratingSum += s.r;
         // reward strong ratings against tougher opposition
-        const adj = s.r * (1 + (diff - 2.5) / 10);
+        const difficultyMultiplier = 1 + (diff - 2.5) / 10;
+        const adj = s.r * difficultyMultiplier;
         d.adjSum += adj;
         d.diffFaced.push(diff);
 
         // Impact score layers minutes played, clean sheets for GK/DEF, and goal
-        // contributions for MID/FWD on top of the difficulty-adjusted rating.
+        // contributions for MID/FWD on top of rating — then, like the rating
+        // itself, the whole thing is weighted up for tougher opposition.
         const minutesPoints = (Math.min(s.min, 90) / 90) * 0.5;
         const isCleanSheet = (pos === "GK" || pos === "DEF") && s.min >= 60 && res.theirScore === 0;
         if (isCleanSheet) d.cleanSheets += 1;
         const goalContribPoints = (pos === "MID" || pos === "FWD") ? s.g * 0.5 + s.a * 0.3 : 0;
-        d.impactSum += adj + minutesPoints + (isCleanSheet ? 1 : 0) + goalContribPoints;
+        const rawImpact = s.r + minutesPoints + (isCleanSheet ? 1 : 0) + goalContribPoints;
+        d.impactSum += rawImpact * difficultyMultiplier;
       });
     });
     return players.map(p => {
@@ -1856,7 +1859,7 @@ function AnalysisTab({ analysis, rankedForSelection, rankedForImpact, topScorers
             </div>
           </Panel>
           <div style={{ color: COLORS.chalkDim }} className="text-xs mt-3">
-            Impact score = the selection index above, plus credit for minutes played, a bonus for GK/DEF clean sheets (playing 60+ minutes in a match with no goals conceded), and a bonus per goal/assist for MID/FWD.
+            Impact score = rating, plus credit for minutes played, a bonus for GK/DEF clean sheets (playing 60+ minutes in a match with no goals conceded), and a bonus per goal/assist for MID/FWD — with the whole total then weighted up or down by how tough the opponent was, same as the selection index.
           </div>
         </>
       )}
