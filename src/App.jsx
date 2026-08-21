@@ -1504,62 +1504,76 @@ function SubsTab({ players, payments, setPaymentStatus, role }) {
           </div>
         }
       />
-      <Panel style={{ overflowX: "auto" }}>
-        <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th className="text-left pb-2 pr-3" style={{ color: COLORS.chalkDim, fontWeight: 500 }}>Player</th>
-              {columns.map(col => {
-                const unpaid = players.filter(p => (payments[col.period]?.[p.id] || "unpaid") === "unpaid");
-                return (
-                  <th key={col.period} className="text-left pb-2 px-3" style={{ color: COLORS.chalkDim, fontWeight: 500, minWidth: 160 }}>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span>{col.label}</span>
-                      <WhatsAppChaseButton
-                        disabled={unpaid.length === 0}
-                        buildMessage={() => col.period === "sign_on"
-                          ? `Chasing the sign-on fee for the following players: ${unpaid.map(p => p.name).join(", ")}. Please sort this ASAP, thanks.`
-                          : `Chasing ${col.label} subs payment for the following players: ${unpaid.map(p => p.name).join(", ")}. Please sort this ASAP, thanks.`}
-                      />
-                    </div>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {players.map(p => (
-              <tr key={p.id} style={{ borderTop: `1px solid ${COLORS.line}` }}>
-                <td className="py-2 pr-3">
-                  <div className="flex items-center gap-2"><ShirtBadge number={p.number} size={24} /> {p.name}</div>
-                </td>
+      <Panel style={{ padding: 0 }}>
+        <div className="overflow-auto" style={{ maxHeight: "70vh" }}>
+          <table className="w-full text-sm" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+            <thead>
+              <tr>
+                <th
+                  className="text-left py-2 px-3"
+                  style={{ color: COLORS.chalkDim, fontWeight: 500, background: COLORS.panel, position: "sticky", top: 0, left: 0, zIndex: 3, borderBottom: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}` }}
+                >
+                  Player
+                </th>
                 {columns.map(col => {
-                  const val = payments[col.period]?.[p.id] || "unpaid";
+                  const unpaid = players.filter(p => (payments[col.period]?.[p.id] || "unpaid") === "unpaid");
                   return (
-                    <td key={col.period} className="py-2 px-3">
-                      <div className="flex gap-1">
-                        {["paid", "unpaid"].map(opt => {
-                          const active = val === opt;
-                          const c = opt === "paid" ? COLORS.green : COLORS.clay;
-                          return (
-                            <button key={opt} onClick={() => setPaymentStatus(col.period, p.id, opt)}
-                              style={{ background: active ? c + "33" : "transparent", border: `1px solid ${active ? c : COLORS.line}`, color: active ? c : COLORS.chalkDim }}
-                              className="text-[11px] px-2 py-1 rounded-md capitalize">
-                              {opt}
-                            </button>
-                          );
-                        })}
+                    <th
+                      key={col.period}
+                      className="text-left py-2 px-3"
+                      style={{ color: COLORS.chalkDim, fontWeight: 500, minWidth: 160, background: COLORS.panel, position: "sticky", top: 0, zIndex: 2, borderBottom: `1px solid ${COLORS.line}` }}
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span>{col.label}</span>
+                        <WhatsAppChaseButton
+                          disabled={unpaid.length === 0}
+                          buildMessage={() => col.period === "sign_on"
+                            ? `Chasing the sign-on fee for the following players: ${unpaid.map(p => p.name).join(", ")}. Please sort this ASAP, thanks.`
+                            : `Chasing ${col.label} subs payment for the following players: ${unpaid.map(p => p.name).join(", ")}. Please sort this ASAP, thanks.`}
+                        />
                       </div>
-                    </td>
+                    </th>
                   );
                 })}
               </tr>
-            ))}
-            {players.length === 0 && (
-              <tr><td colSpan={columns.length + 1} className="py-3 text-sm" style={{ color: COLORS.chalkDim }}>No players registered yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {players.map(p => (
+                <tr key={p.id}>
+                  <td
+                    className="py-2 px-3"
+                    style={{ background: COLORS.panel, position: "sticky", left: 0, zIndex: 1, borderTop: `1px solid ${COLORS.line}`, borderRight: `1px solid ${COLORS.line}` }}
+                  >
+                    <div className="flex items-center gap-2"><ShirtBadge number={p.number} size={24} /> {p.name}</div>
+                  </td>
+                  {columns.map(col => {
+                    const val = payments[col.period]?.[p.id] || "unpaid";
+                    return (
+                      <td key={col.period} className="py-2 px-3" style={{ borderTop: `1px solid ${COLORS.line}` }}>
+                        <div className="flex gap-1">
+                          {["paid", "unpaid"].map(opt => {
+                            const active = val === opt;
+                            const c = opt === "paid" ? COLORS.green : COLORS.clay;
+                            return (
+                              <button key={opt} onClick={() => setPaymentStatus(col.period, p.id, opt)}
+                                style={{ background: active ? c + "33" : "transparent", border: `1px solid ${active ? c : COLORS.line}`, color: active ? c : COLORS.chalkDim }}
+                                className="text-[11px] px-2 py-1 rounded-md capitalize">
+                                {opt}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+              {players.length === 0 && (
+                <tr><td colSpan={columns.length + 1} className="py-3 text-sm" style={{ color: COLORS.chalkDim }}>No players registered yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Panel>
     </div>
   );
