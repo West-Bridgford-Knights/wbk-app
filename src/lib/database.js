@@ -87,7 +87,7 @@ export async function loadAppData() {
     }), {}),
     lineups: lineupRows.reduce((all, row) => ({
       ...all,
-      [row.fixture_id]: { starters: row.starters || {}, subs: row.subs || [], captain: row.captain_id || null },
+      [row.fixture_id]: { starters: row.starters || {}, subs: row.subs || [], captain: row.captain_id || null, formation: row.formation || "4-3-3" },
     }), {}),
     results: resultRows.reduce((all, row) => ({
       ...all,
@@ -127,6 +127,7 @@ export async function saveLineup(fixtureId, lineup) {
     starters: lineup.starters || {},
     subs: lineup.subs || [],
     captain_id: lineup.captain || null,
+    formation: lineup.formation || "4-3-3",
   }]);
 }
 

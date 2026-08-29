@@ -36,24 +36,72 @@ const COLORS = {
   green: "#5FA463",
 };
 
-const FORMATION = [
-  { key: "GK", label: "GK", top: 90, left: 50 },
-  { key: "LB", label: "LB", top: 72, left: 15 },
-  { key: "CB1", label: "CB", top: 76, left: 37 },
-  { key: "CB2", label: "CB", top: 76, left: 63 },
-  { key: "RB", label: "RB", top: 72, left: 85 },
-  { key: "CM1", label: "CM", top: 50, left: 22 },
-  { key: "CM2", label: "CM", top: 46, left: 50 },
-  { key: "CM3", label: "CM", top: 50, left: 78 },
-  { key: "LW", label: "LW", top: 20, left: 15 },
-  { key: "ST", label: "ST", top: 13, left: 50 },
-  { key: "RW", label: "RW", top: 20, left: 85 },
-];
+const DEFAULT_FORMATION = "4-3-3";
+const FORMATIONS = {
+  "4-3-3": [
+    { key: "GK", label: "GK", top: 90, left: 50 },
+    { key: "LB", label: "LB", top: 72, left: 15 },
+    { key: "CB1", label: "CB", top: 76, left: 37 },
+    { key: "CB2", label: "CB", top: 76, left: 63 },
+    { key: "RB", label: "RB", top: 72, left: 85 },
+    { key: "CM1", label: "CM", top: 50, left: 22 },
+    { key: "CM2", label: "CM", top: 46, left: 50 },
+    { key: "CM3", label: "CM", top: 50, left: 78 },
+    { key: "LW", label: "LW", top: 20, left: 15 },
+    { key: "ST", label: "ST", top: 13, left: 50 },
+    { key: "RW", label: "RW", top: 20, left: 85 },
+  ],
+  "4-4-2": [
+    { key: "GK", label: "GK", top: 90, left: 50 },
+    { key: "LB", label: "LB", top: 72, left: 15 },
+    { key: "CB1", label: "CB", top: 76, left: 37 },
+    { key: "CB2", label: "CB", top: 76, left: 63 },
+    { key: "RB", label: "RB", top: 72, left: 85 },
+    { key: "LM", label: "LM", top: 48, left: 12 },
+    { key: "CM1", label: "CM", top: 52, left: 38 },
+    { key: "CM2", label: "CM", top: 52, left: 62 },
+    { key: "RM", label: "RM", top: 48, left: 88 },
+    { key: "ST1", label: "ST", top: 16, left: 38 },
+    { key: "ST2", label: "ST", top: 16, left: 62 },
+  ],
+  "3-5-2": [
+    { key: "GK", label: "GK", top: 90, left: 50 },
+    { key: "CB1", label: "CB", top: 74, left: 25 },
+    { key: "CB2", label: "CB", top: 78, left: 50 },
+    { key: "CB3", label: "CB", top: 74, left: 75 },
+    { key: "LWB", label: "LWB", top: 52, left: 8 },
+    { key: "CM1", label: "CM", top: 55, left: 32 },
+    { key: "CM2", label: "CM", top: 58, left: 50 },
+    { key: "CM3", label: "CM", top: 55, left: 68 },
+    { key: "RWB", label: "RWB", top: 52, left: 92 },
+    { key: "ST1", label: "ST", top: 16, left: 38 },
+    { key: "ST2", label: "ST", top: 16, left: 62 },
+  ],
+  "4-2-3-1": [
+    { key: "GK", label: "GK", top: 90, left: 50 },
+    { key: "LB", label: "LB", top: 72, left: 15 },
+    { key: "CB1", label: "CB", top: 76, left: 37 },
+    { key: "CB2", label: "CB", top: 76, left: 63 },
+    { key: "RB", label: "RB", top: 72, left: 85 },
+    { key: "CDM1", label: "CDM", top: 58, left: 35 },
+    { key: "CDM2", label: "CDM", top: 58, left: 65 },
+    { key: "LW", label: "LW", top: 32, left: 15 },
+    { key: "CAM", label: "CAM", top: 30, left: 50 },
+    { key: "RW", label: "RW", top: 32, left: 85 },
+    { key: "ST", label: "ST", top: 13, left: 50 },
+  ],
+};
 
 const MANAGER_ONLY_TABS = ["lineups", "subs", "pitch"];
 
 const TOTAL_TEAMS = 12;
 const ACTIVE_PLAYER_STORAGE_KEY = "wbk-active-player-id";
+
+// Unlisted read-only view of the next game's squad, reached only by knowing this exact
+// query param — there's no real auth in this app (RLS is open to anon), so this is
+// obscurity rather than a security boundary, same as everything else here.
+const NEXT_GAME_SQUAD_KEY = "squad";
+const NEXT_GAME_SQUAD_SECRET = "1b5c240e7c740d983ffe206b381f21eb";
 
 function formatFixtureDate(value) {
   if (value === "TBC") return value;
@@ -572,6 +620,11 @@ export default function App() {
     );
   }
 
+  const secretSquadKey = new URLSearchParams(window.location.search).get(NEXT_GAME_SQUAD_KEY);
+  if (secretSquadKey === NEXT_GAME_SQUAD_SECRET) {
+    return <NextGameSquadView fixtures={fixtures} players={activePlayers} availability={availability} />;
+  }
+
   const activePlayerValid = players.some(p => p.id === activePlayerId);
 
   if (role === "player" && !activePlayerValid) {
@@ -680,6 +733,15 @@ export default function App() {
   function selectCaptain(fixtureId, playerId) {
     const current = lineups[fixtureId] || { starters: {}, subs: [], captain: null };
     const lineup = { ...current, captain: current.captain === playerId ? null : playerId };
+    setLineups(prev => ({ ...prev, [fixtureId]: lineup }));
+    void saveLineup(fixtureId, lineup).catch(reportSaveError);
+  }
+
+  function setFormation(fixtureId, formationKey) {
+    const current = lineups[fixtureId] || { starters: {}, subs: [], captain: null };
+    // Switching formation clears the pitch positions (slot keys differ between
+    // formations) but keeps the bench and captain intact.
+    const lineup = { ...current, formation: formationKey, starters: {} };
     setLineups(prev => ({ ...prev, [fixtureId]: lineup }));
     void saveLineup(fixtureId, lineup).catch(reportSaveError);
   }
@@ -865,7 +927,7 @@ export default function App() {
               <LineupsTab
                 fixtures={upcoming} players={activePlayers} availability={availability}
                 lineups={lineups} lineupFixtureId={lineupFixtureId} setLineupFixtureId={setLineupFixtureId}
-                assignSlot={assignSlot} toggleSub={toggleSub} selectCaptain={selectCaptain} role={role}
+                assignSlot={assignSlot} toggleSub={toggleSub} selectCaptain={selectCaptain} setFormation={setFormation} role={role}
               />
             )}
 
@@ -1327,10 +1389,11 @@ function AvailabilityTab({ fixtures, players, availability, setAvail, role, acti
 }
 
 // ---------- Squads ----------
-function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId, setLineupFixtureId, assignSlot, toggleSub, selectCaptain, role }) {
+function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId, setLineupFixtureId, assignSlot, toggleSub, selectCaptain, setFormation, role }) {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const fixture = fixtures.find(f => f.id === lineupFixtureId) || fixtures[0];
-  const current = fixture ? (lineups[fixture.id] || { starters: {}, subs: [], captain: null }) : { starters: {}, subs: [], captain: null };
+  const current = fixture ? (lineups[fixture.id] || { starters: {}, subs: [], captain: null, formation: DEFAULT_FORMATION }) : { starters: {}, subs: [], captain: null, formation: DEFAULT_FORMATION };
+  const formation = FORMATIONS[current.formation] || FORMATIONS[DEFAULT_FORMATION];
   const fixtureDateKey = fixture ? dateKey(fixture.date) : null;
   const availableIds = fixture ? players.filter(p => availability[fixtureDateKey]?.[p.id] === "yes").map(p => p.id) : [];
   const usedIds = new Set([...Object.values(current.starters), ...current.subs]);
@@ -1339,7 +1402,7 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
   if (!fixture) return <div><SectionHeading eyebrow="Team selection" title="Matchday Squads" /><Panel><div style={{ color: COLORS.chalkDim }}>No upcoming fixture to set a squad for.</div></Panel></div>;
 
   function handlePlayerClick(playerId) {
-    const targetSlot = selectedSlot || FORMATION.find(slot => !current.starters[slot.key])?.key;
+    const targetSlot = selectedSlot || formation.find(slot => !current.starters[slot.key])?.key;
     if (!targetSlot) return;
     assignSlot(fixture.id, targetSlot, playerId);
     setSelectedSlot(null);
@@ -1356,6 +1419,11 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
               style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
               className="text-sm px-3 py-2 rounded-md">
               {fixtures.map(f => <option key={f.id} value={f.id}>{f.opponent} · {f.date}</option>)}
+            </select>
+            <select value={current.formation || DEFAULT_FORMATION} onChange={e => setFormation(fixture.id, e.target.value)}
+              style={{ background: COLORS.panel, border: `1px solid ${COLORS.line}`, color: COLORS.chalk }}
+              className="text-sm px-3 py-2 rounded-md">
+              {Object.keys(FORMATIONS).map(f => <option key={f} value={f}>{f}</option>)}
             </select>
             <button
               type="button"
@@ -1386,7 +1454,7 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
             <div style={{ position: "absolute", inset: 10, border: "2px solid #ffffff33", borderRadius: 4 }} />
             <div style={{ position: "absolute", top: 10, left: "50%", width: 1, height: "calc(100% - 20px)", background: "#ffffff33" }} />
             <div style={{ position: "absolute", top: "calc(50% - 45px)", left: "50%", transform: "translateX(-50%)", width: 90, height: 90, border: "2px solid #ffffff33", borderRadius: "50%" }} />
-            {FORMATION.map(slot => {
+            {formation.map(slot => {
               const pid = current.starters[slot.key];
               const player = players.find(p => p.id === pid);
               return (
@@ -1967,6 +2035,61 @@ function AnalysisTab({ analysis, rankedForSelection, rankedForImpact, topScorers
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// ---------- Next game squad (unlisted read-only link) ----------
+function NextGameSquadView({ fixtures, players, availability }) {
+  const next = [...fixtures]
+    .filter(f => f.status === "upcoming")
+    .sort((a, b) => a.date.localeCompare(b.date))[0];
+
+  const dateStr = next ? dateKey(next.date) : null;
+  const groups = AVAILABILITY_STATUS_GROUPS.map(g => ({
+    ...g,
+    players: players.filter(p => (availability[dateStr]?.[p.id] || "unset") === g.key),
+  }));
+
+  return (
+    <div style={{ background: COLORS.bg, minHeight: "100vh", color: COLORS.chalk }} className="p-6 md:p-10">
+      <div style={{ maxWidth: 720 }} className="mx-auto">
+        <div className="flex items-center gap-2.5 mb-6">
+          <CrestBadge size={38} />
+          <div>
+            <div style={{ fontFamily: "'Bebas Neue', sans-serif", color: COLORS.gold }} className="text-lg tracking-wide leading-none">
+              WEST BRIDGFORD KNIGHTS
+            </div>
+            <div style={{ color: COLORS.chalkDim }} className="text-[11px] mt-0.5">Next game squad</div>
+          </div>
+        </div>
+
+        {!next ? (
+          <Panel><div style={{ color: COLORS.chalkDim }} className="text-sm">No upcoming fixture scheduled.</div></Panel>
+        ) : (
+          <>
+            <Panel className="mb-5">
+              <div className="text-lg font-semibold">vs {next.opponent}</div>
+              <div style={{ color: COLORS.chalkDim }} className="text-sm mt-1">{formatFixtureDate(next.date)} · {next.venue}</div>
+            </Panel>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {groups.map(g => (
+                <Panel key={g.key}>
+                  <Badge color={g.color}>{g.label} · {g.players.length}</Badge>
+                  <div className="flex flex-col gap-1 mt-3">
+                    {g.players.map(p => (
+                      <div key={p.id} className="flex items-center gap-2 text-sm py-0.5">
+                        <ShirtBadge number={p.number} size={22} /> {p.name}
+                      </div>
+                    ))}
+                    {g.players.length === 0 && <div style={{ color: COLORS.chalkDim }} className="text-xs">None</div>}
+                  </div>
+                </Panel>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
