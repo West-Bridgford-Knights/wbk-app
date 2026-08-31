@@ -1789,14 +1789,14 @@ function SubsTab({ players, payments, setPaymentStatus, role }) {
 
 // ---------- Pitch availability ----------
 const PITCH_FACILITIES = [
-  { id: "d3bc83f0-a754-40a9-ba16-d7e31e00252d", shortLabel: "ATP2 Quarters", label: "Gresham Sports Park — ATP2 (Quarters)" },
-  { id: "36379e04-3e64-4a9c-b3c5-7b46be11db82", shortLabel: "ATP1 Thirds", label: "Gresham Sports Park — ATP1 (Thirds)" },
+  { id: "d3bc83f0-a754-40a9-ba16-d7e31e00252d", shortLabel: "Gresham 3G 2", label: "Gresham Sports Park — ATP2 (Quarters)" },
+  { id: "36379e04-3e64-4a9c-b3c5-7b46be11db82", shortLabel: "Gresham 3G 1", label: "Gresham Sports Park — ATP1 (Thirds)" },
   { id: "df95c884-396b-4d02-9719-4afaad1c1563", shortLabel: "Rushcliffe 3G", label: "Rushcliffe — 3G Floodlit Pitches (Bottom)" },
-  { id: "d6df2a13-d8ef-4ee0-8957-0f3de9aefb55", shortLabel: "Grass 1", label: "Gresham Sports Park — Grass Pitch 1 (11v11)" },
-  { id: "6bd7d271-4164-4ef3-8f0d-7e132307179e", shortLabel: "Grass 2", label: "Gresham Sports Park — Grass Pitch 2 (11v11)" },
-  { id: "6803fd86-5dd2-4685-aa4e-60ec6da5327f", shortLabel: "Grass 3", label: "Gresham Sports Park — Grass Pitch 3 (11v11)" },
-  { id: "ce1a82bd-5150-42a9-b670-14e263f0a6bb", shortLabel: "Grass 4", label: "Gresham Sports Park — Grass Pitch 4 (11v11)" },
-  { id: "97040707-1630-4aba-afb9-3b02d56d3648", shortLabel: "Grass 5", label: "Gresham Sports Park — Grass Pitch 5 (11v11)" },
+  { id: "d6df2a13-d8ef-4ee0-8957-0f3de9aefb55", shortLabel: "Gresham Grass 1", label: "Gresham Sports Park — Grass Pitch 1 (11v11)" },
+  { id: "6bd7d271-4164-4ef3-8f0d-7e132307179e", shortLabel: "Gresham Grass 2", label: "Gresham Sports Park — Grass Pitch 2 (11v11)" },
+  { id: "6803fd86-5dd2-4685-aa4e-60ec6da5327f", shortLabel: "Gresham Grass 3", label: "Gresham Sports Park — Grass Pitch 3 (11v11)" },
+  { id: "ce1a82bd-5150-42a9-b670-14e263f0a6bb", shortLabel: "Gresham Grass 4", label: "Gresham Sports Park — Grass Pitch 4 (11v11)" },
+  { id: "97040707-1630-4aba-afb9-3b02d56d3648", shortLabel: "Gresham Grass 5", label: "Gresham Sports Park — Grass Pitch 5 (11v11)" },
 ];
 
 function summarizePitchStatus(slots) {
