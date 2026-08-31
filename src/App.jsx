@@ -1580,7 +1580,7 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
             }}
           >
             <div style={{ position: "absolute", inset: 10, border: "2px solid #ffffff33", borderRadius: 4 }} />
-            <div style={{ position: "absolute", top: 10, left: "50%", width: 1, height: "calc(100% - 20px)", background: "#ffffff33" }} />
+            <div style={{ position: "absolute", top: "50%", left: 10, width: "calc(100% - 20px)", height: 1, background: "#ffffff33" }} />
             <div style={{ position: "absolute", top: "calc(50% - 45px)", left: "50%", transform: "translateX(-50%)", width: 90, height: 90, border: "2px solid #ffffff33", borderRadius: "50%" }} />
             {formation.map(slot => {
               const pid = current.starters[slot.key];
