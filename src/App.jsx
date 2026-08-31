@@ -470,6 +470,114 @@ async function downloadSquadPng(fixture, players, captainId, previewWindow) {
   }
 }
 
+async function downloadAvailabilityPng(fixture, groups, previewWindow) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 800;
+  canvas.height = 1100;
+  const context = canvas.getContext("2d");
+  const navy = "#151A3A";
+  const gold = COLORS.gold;
+  const chalk = "#F5F3EE";
+  const muted = "#C6C9D8";
+
+  context.fillStyle = navy;
+  context.fillRect(0, 0, 800, 1100);
+
+  const sky = context.createLinearGradient(0, 0, 800, 1100);
+  sky.addColorStop(0, "#29324B");
+  sky.addColorStop(0.45, "#19213E");
+  sky.addColorStop(1, "#0C1230");
+  context.fillStyle = sky;
+  context.fillRect(0, 0, 800, 1100);
+
+  context.fillStyle = gold;
+  context.fillRect(0, 0, 34, 1100);
+  context.fillRect(766, 0, 34, 1100);
+  for (let y = 18; y < 1100; y += 150) {
+    context.fillStyle = navy;
+    context.fillRect(0, y, 34, 52);
+    context.fillRect(766, y + 62, 34, 52);
+  }
+
+  context.textAlign = "center";
+  context.fillStyle = gold;
+  context.font = "bold 29px Arial, sans-serif";
+  context.fillText("WEST BRIDGFORD KNIGHTS F.C.", 400, 48);
+  context.fillStyle = chalk;
+  context.font = "bold 28px Arial, sans-serif";
+  context.fillText("VS", 400, 88);
+  context.fillStyle = chalk;
+  context.font = "bold 29px Arial, sans-serif";
+  context.fillText(fixture.opponent.toUpperCase(), 400, 128);
+  context.fillStyle = muted;
+  context.font = "bold 21px Arial, sans-serif";
+  context.fillText(`${formatFixtureDate(fixture.date)}  |  ${fixture.venue}`, 400, 164);
+
+  context.fillStyle = chalk;
+  context.font = "bold 74px Impact, sans-serif";
+  context.fillText("AVAILABILITY", 400, 250);
+
+  context.textAlign = "left";
+  const columnX = [86, 424];
+  const columnWidth = 300;
+  const rowTop = 300;
+  const rowHeight = 260;
+  const rowGap = 24;
+
+  groups.forEach((group, index) => {
+    const x = columnX[index % 2];
+    const y = rowTop + Math.floor(index / 2) * (rowHeight + rowGap);
+
+    context.fillStyle = group.color;
+    context.font = "bold 22px Arial, sans-serif";
+    context.fillText(`${group.label.toUpperCase()} · ${group.players.length}`, x, y);
+    context.strokeStyle = group.color;
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(x, y + 10);
+    context.lineTo(x + columnWidth, y + 10);
+    context.stroke();
+
+    const nameAreaHeight = rowHeight - 44;
+    const nameRowHeight = Math.min(26, nameAreaHeight / Math.max(group.players.length, 1));
+    const fontSize = Math.max(11, Math.min(18, nameRowHeight - 6));
+    context.font = `bold ${fontSize}px Arial, sans-serif`;
+    if (group.players.length === 0) {
+      context.fillStyle = muted;
+      context.font = "16px Arial, sans-serif";
+      context.fillText("None", x, y + 44);
+    } else {
+      group.players.forEach((player, i) => {
+        context.fillStyle = chalk;
+        context.fillText(player.name.toUpperCase(), x, y + 44 + i * nameRowHeight);
+      });
+    }
+  });
+
+  const logo = new Image();
+  logo.src = clubLogoUrl;
+  await new Promise(resolve => {
+    logo.onload = resolve;
+    logo.onerror = resolve;
+  });
+  if (logo.complete && logo.naturalWidth) context.drawImage(logo, 390, 900, 338, 169);
+
+  context.fillStyle = gold;
+  context.fillRect(72, 1072, 656, 2);
+
+  const dataUrl = canvas.toDataURL("image/png");
+  if (previewWindow && !previewWindow.closed) {
+    previewWindow.document.open();
+    previewWindow.document.write(`<!doctype html><html><head><title>Availability vs ${fixture.opponent}</title><meta name="viewport" content="width=device-width, initial-scale=1"></head><body style="margin:0;background:#12162A;min-height:100vh;display:flex;align-items:center;justify-content:center;"><img src="${dataUrl}" alt="Availability breakdown graphic" style="max-width:100%;height:auto;display:block;"></body></html>`);
+    previewWindow.document.close();
+  } else {
+    const link = document.createElement("a");
+    link.download = `match-day-availability-${fixture.id}.png`;
+    link.href = dataUrl;
+    link.click();
+  }
+}
+
 // ---------- Main App ----------
 export default function App() {
   const [players, setPlayers] = useState([]);
@@ -1397,6 +1505,12 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
   const fixtureDateKey = fixture ? dateKey(fixture.date) : null;
   const availableIds = fixture ? players.filter(p => availability[fixtureDateKey]?.[p.id] === "yes").map(p => p.id) : [];
   const usedIds = new Set([...Object.values(current.starters), ...current.subs]);
+  const availabilityGroups = [
+    { key: "yes", label: "Available", color: COLORS.green },
+    { key: "maybe", label: "Maybe", color: COLORS.gold },
+    { key: "no", label: "Not available", color: COLORS.clay },
+    { key: "unset", label: "No response", color: COLORS.chalkDim },
+  ].map(g => ({ ...g, players: players.filter(p => (availability[fixtureDateKey]?.[p.id] || "unset") === g.key) }));
 
   if (role !== "manager") return <div><SectionHeading eyebrow="Manager access" title="Matchday Squads" /><Panel><div style={{ color: COLORS.chalkDim }}>Squad selection is available to managers only.</div></Panel></div>;
   if (!fixture) return <div><SectionHeading eyebrow="Team selection" title="Matchday Squads" /><Panel><div style={{ color: COLORS.chalkDim }}>No upcoming fixture to set a squad for.</div></Panel></div>;
@@ -1436,6 +1550,17 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
               className="text-xs font-semibold px-3 py-2 rounded-md flex items-center gap-1.5"
             >
               <Download size={14} /> Create squad PNG
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const previewWindow = window.open("", "_blank");
+                downloadAvailabilityPng(fixture, availabilityGroups, previewWindow);
+              }}
+              style={{ background: COLORS.sky, color: COLORS.bg }}
+              className="text-xs font-semibold px-3 py-2 rounded-md flex items-center gap-1.5"
+            >
+              <Download size={14} /> Create availability PNG
             </button>
           </div>
         }
@@ -1516,35 +1641,27 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
       <Panel className="mt-4">
         <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-3">Availability breakdown</div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { key: "yes", label: "Available", color: COLORS.green },
-            { key: "maybe", label: "Maybe", color: COLORS.gold },
-            { key: "no", label: "Not available", color: COLORS.clay },
-            { key: "unset", label: "No response", color: COLORS.chalkDim },
-          ].map(({ key, label, color }) => {
-            const group = players.filter(p => (availability[fixtureDateKey]?.[p.id] || "unset") === key);
-            return (
-              <div key={key}>
-                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-                  <Badge color={color}>{label} · {group.length}</Badge>
-                  {key === "unset" && (
-                    <WhatsAppChaseButton
-                      disabled={group.length === 0}
-                      buildMessage={() => `Chasing availability for ${fixture.opponent} game on ${formatShortDate(fixtureDateKey)} for the following players: ${group.map(p => p.name).join(", ")}. Please log on here and set availability asap: ${getSiteUrl()}`}
-                    />
-                  )}
-                </div>
-                <div className="flex flex-col gap-1">
-                  {group.map(p => (
-                    <div key={p.id} className="flex items-center gap-2 text-sm py-0.5">
-                      <ShirtBadge number={p.number} size={20} /> {p.name}
-                    </div>
-                  ))}
-                  {group.length === 0 && <div style={{ color: COLORS.chalkDim }} className="text-xs">None</div>}
-                </div>
+          {availabilityGroups.map(group => (
+            <div key={group.key}>
+              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                <Badge color={group.color}>{group.label} · {group.players.length}</Badge>
+                {group.key === "unset" && (
+                  <WhatsAppChaseButton
+                    disabled={group.players.length === 0}
+                    buildMessage={() => `Chasing availability for ${fixture.opponent} game on ${formatShortDate(fixtureDateKey)} for the following players: ${group.players.map(p => p.name).join(", ")}. Please log on here and set availability asap: ${getSiteUrl()}`}
+                  />
+                )}
               </div>
-            );
-          })}
+              <div className="flex flex-col gap-1">
+                {group.players.map(p => (
+                  <div key={p.id} className="flex items-center gap-2 text-sm py-0.5">
+                    <ShirtBadge number={p.number} size={20} /> {p.name}
+                  </div>
+                ))}
+                {group.players.length === 0 && <div style={{ color: COLORS.chalkDim }} className="text-xs">None</div>}
+              </div>
+            </div>
+          ))}
         </div>
       </Panel>
     </div>
