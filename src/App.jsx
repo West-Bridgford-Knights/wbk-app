@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Users, CalendarDays, ClipboardCheck, Shirt, Trophy, TrendingUp,
   BarChart3, Star, Plus, X, RefreshCw, ChevronRight, ChevronLeft, Target, Zap, Download,
-  LogIn, ShieldCheck, Info, Wallet, MessageCircle, MapPin, ExternalLink
+  LogIn, ShieldCheck, Info, Wallet, MessageCircle, MapPin, ExternalLink, CheckCircle2
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -14,6 +14,7 @@ import {
   loadFixtures,
   loadLeagueTable,
   saveAvailability,
+  saveConfirmedPitch,
   saveFixture,
   saveLineup,
   savePayment,
@@ -178,9 +179,10 @@ function getSundaysBetween(fromStr, toStr) {
 }
 
 // ---------- Small UI atoms ----------
-function Badge({ children, color = COLORS.gold, subtle }) {
+function Badge({ children, color = COLORS.gold, subtle, ...rest }) {
   return (
     <span
+      {...rest}
       style={{
         background: subtle ? "transparent" : color + "22",
         color,
@@ -590,6 +592,7 @@ export default function App() {
   const [lineups, setLineups] = useState({});
   const [payments, setPayments] = useState({});
   const [pitchAvailability, setPitchAvailability] = useState({});
+  const [pitchBookings, setPitchBookings] = useState({});
   const [dataReady, setDataReady] = useState(false);
   const [dataError, setDataError] = useState("");
   const [tab, setTab] = useState("dashboard");
@@ -616,6 +619,7 @@ export default function App() {
         setLineups(data.lineups);
         setPayments(data.payments);
         setPitchAvailability(data.pitchAvailability);
+        setPitchBookings(data.pitchBookings);
         setResults(data.results);
         setLeagueTable(data.leagueTable);
         setLineupFixtureId(data.fixtures.find(f => f.status === "upcoming")?.id || null);
@@ -819,6 +823,15 @@ export default function App() {
     const next = { ...payments, [period]: { ...(payments[period] || {}), [playerId]: status } };
     setPayments(next);
     void savePayment(period, playerId, status).catch(reportSaveError);
+  }
+
+  function setConfirmedPitch(fixtureId, facilityId) {
+    setPitchBookings(prev => {
+      const next = { ...prev };
+      if (facilityId) next[fixtureId] = facilityId; else delete next[fixtureId];
+      return next;
+    });
+    void saveConfirmedPitch(fixtureId, facilityId).catch(reportSaveError);
   }
 
   function assignSlot(fixtureId, slotKey, playerId) {
@@ -1047,7 +1060,7 @@ export default function App() {
             )}
 
             {tab === "pitch" && (
-              <PitchAvailabilityTab fixtures={upcoming} pitchAvailability={pitchAvailability} role={role} />
+              <PitchAvailabilityTab fixtures={upcoming} pitchAvailability={pitchAvailability} pitchBookings={pitchBookings} setConfirmedPitch={setConfirmedPitch} role={role} />
             )}
 
             {tab === "results" && (
@@ -1776,12 +1789,25 @@ function SubsTab({ players, payments, setPaymentStatus, role }) {
 
 // ---------- Pitch availability ----------
 const PITCH_FACILITIES = [
-  { id: "d3bc83f0-a754-40a9-ba16-d7e31e00252d", label: "Gresham Sports Park — ATP2 (Quarters)" },
-  { id: "36379e04-3e64-4a9c-b3c5-7b46be11db82", label: "Gresham Sports Park — ATP1 (Thirds)" },
-  { id: "df95c884-396b-4d02-9719-4afaad1c1563", label: "Rushcliffe — 3G Floodlit Pitches (Bottom)" },
+  { id: "d3bc83f0-a754-40a9-ba16-d7e31e00252d", shortLabel: "ATP2 Quarters", label: "Gresham Sports Park — ATP2 (Quarters)" },
+  { id: "36379e04-3e64-4a9c-b3c5-7b46be11db82", shortLabel: "ATP1 Thirds", label: "Gresham Sports Park — ATP1 (Thirds)" },
+  { id: "df95c884-396b-4d02-9719-4afaad1c1563", shortLabel: "Rushcliffe 3G", label: "Rushcliffe — 3G Floodlit Pitches (Bottom)" },
+  { id: "d6df2a13-d8ef-4ee0-8957-0f3de9aefb55", shortLabel: "Grass 1", label: "Gresham Sports Park — Grass Pitch 1 (11v11)" },
+  { id: "6bd7d271-4164-4ef3-8f0d-7e132307179e", shortLabel: "Grass 2", label: "Gresham Sports Park — Grass Pitch 2 (11v11)" },
+  { id: "6803fd86-5dd2-4685-aa4e-60ec6da5327f", shortLabel: "Grass 3", label: "Gresham Sports Park — Grass Pitch 3 (11v11)" },
+  { id: "ce1a82bd-5150-42a9-b670-14e263f0a6bb", shortLabel: "Grass 4", label: "Gresham Sports Park — Grass Pitch 4 (11v11)" },
+  { id: "97040707-1630-4aba-afb9-3b02d56d3648", shortLabel: "Grass 5", label: "Gresham Sports Park — Grass Pitch 5 (11v11)" },
 ];
 
-function PitchAvailabilityTab({ fixtures, pitchAvailability, role }) {
+function summarizePitchStatus(slots) {
+  const entries = slots ? Object.entries(slots) : [];
+  if (entries.length === 0) return { label: "Not checked yet", color: COLORS.chalkDim };
+  if (entries.some(([, e]) => e.available)) return { label: "Available", color: COLORS.green };
+  if (entries.every(([, e]) => e.blockReason === "schedule/bounds")) return { label: "Not open yet", color: COLORS.chalkDim };
+  return { label: "Booked", color: COLORS.clay };
+}
+
+function PitchAvailabilityTab({ fixtures, pitchAvailability, pitchBookings, setConfirmedPitch, role }) {
   if (role !== "manager") return <div><SectionHeading eyebrow="Manager access" title="Pitch Availability" /><Panel><div style={{ color: COLORS.chalkDim }}>Pitch availability is available to managers only.</div></Panel></div>;
 
   const homeFixtures = [...fixtures]
@@ -1793,55 +1819,58 @@ function PitchAvailabilityTab({ fixtures, pitchAvailability, role }) {
       <SectionHeading eyebrow="Home fixtures · 10am–12pm" title="Pitch Availability" />
       <Panel className="mb-4">
         <div style={{ color: COLORS.chalkDim }} className="text-sm">
-          Checked automatically once a day against Pitchbooking for each upcoming home fixture, across {PITCH_FACILITIES.length} pitches. Booking itself still happens on their site — this just flags whether a slot looks free.
+          Checked automatically once a day against Pitchbooking for each upcoming home fixture, across {PITCH_FACILITIES.length} pitches — hover a status for the exact slot times. Booking itself still happens on their site; tap the check mark on whichever pitch you've actually booked to keep track of it here.
         </div>
       </Panel>
       <div className="flex flex-col gap-2">
         {homeFixtures.map(f => {
           const dateStr = dateKey(f.date);
+          const confirmedId = pitchBookings[f.id];
+          const confirmedFacility = PITCH_FACILITIES.find(fac => fac.id === confirmedId);
           return (
             <Panel key={f.id}>
-              <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
                 <div className="text-sm font-semibold">vs {f.opponent}</div>
-                <div style={{ color: COLORS.chalkDim }} className="text-xs">{formatFixtureDate(f.date)}</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {confirmedFacility && <Badge color={COLORS.gold}>Booked · {confirmedFacility.shortLabel}</Badge>}
+                  <div style={{ color: COLORS.chalkDim }} className="text-xs">{formatFixtureDate(f.date)}</div>
+                </div>
               </div>
-              <div className="flex flex-col gap-1.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {PITCH_FACILITIES.map(facility => {
                   const slots = dateStr ? pitchAvailability[facility.id]?.[dateStr] : null;
-                  const checkedAt = slots && Object.values(slots).find(s => s.checkedAt)?.checkedAt;
-                  const label = Object.values(slots || {})[0]?.facilityName || facility.label;
-                  // Some facilities only offer bookings on the hour, others every 15 minutes —
-                  // show whichever start times actually came back rather than a fixed pair.
-                  const slotStarts = slots ? Object.keys(slots).sort() : [];
+                  const summary = summarizePitchStatus(slots);
+                  const isConfirmed = confirmedId === facility.id;
+                  // Some facilities only offer bookings on the hour, others every 15/30 minutes —
+                  // list whichever start times actually came back rather than assuming a fixed pair.
+                  const tooltip = slots
+                    ? Object.entries(slots).map(([slot, e]) => `${slot} ${e.available ? "free" : e.blockReason === "schedule/bounds" ? "not open yet" : "booked"}`).join(", ")
+                    : "Not checked yet";
                   return (
-                    <div key={facility.id} className="flex items-center justify-between flex-wrap gap-2 py-1.5" style={{ borderTop: `1px solid ${COLORS.line}` }}>
-                      <div>
-                        <div className="text-xs" style={{ color: COLORS.chalkDim }}>{label}</div>
-                        {checkedAt && (
-                          <div className="text-[11px]" style={{ color: COLORS.chalkDim }}>
-                            Checked {new Date(checkedAt).toLocaleString("en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {slotStarts.length === 0 && <Badge color={COLORS.chalkDim}>10:00–12:00 · Not checked yet</Badge>}
-                        {slotStarts.map(slot => {
-                          const entry = slots[slot];
-                          // "schedule/bounds" means the venue just hasn't opened booking that
-                          // far ahead yet — not the same as an already-booked slot.
-                          const notOpenYet = !entry.available && entry.blockReason === "schedule/bounds";
-                          const color = entry.available ? COLORS.green : notOpenYet ? COLORS.chalkDim : COLORS.clay;
-                          const text = entry.available ? "Available" : notOpenYet ? "Not open to book yet" : "Booked";
-                          return <Badge key={slot} color={color}>{slot} · {text}</Badge>;
-                        })}
-                        <a
-                          href={`https://pitchbooking.com/book/facility/${facility.id}`} target="_blank" rel="noreferrer"
-                          style={{ color: COLORS.gold }}
-                          className="text-xs font-semibold flex items-center gap-1"
+                    <div
+                      key={facility.id}
+                      style={{ border: `1px solid ${isConfirmed ? COLORS.gold : COLORS.line}`, background: isConfirmed ? COLORS.gold + "18" : "transparent" }}
+                      className="rounded-md p-2 flex flex-col gap-1.5"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[11px] font-semibold truncate" title={facility.label}>{facility.shortLabel}</span>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmedPitch(f.id, isConfirmed ? null : facility.id)}
+                          title={isConfirmed ? "Unconfirm this pitch" : "Mark as the pitch we've booked"}
+                          style={{ color: isConfirmed ? COLORS.gold : COLORS.chalkDim }}
                         >
-                          Book <ExternalLink size={12} />
-                        </a>
+                          <CheckCircle2 size={14} />
+                        </button>
                       </div>
+                      <Badge color={summary.color} subtle title={tooltip}>{summary.label}</Badge>
+                      <a
+                        href={`https://pitchbooking.com/book/facility/${facility.id}`} target="_blank" rel="noreferrer"
+                        style={{ color: COLORS.sky }}
+                        className="text-[10px] font-semibold flex items-center gap-0.5"
+                      >
+                        Book <ExternalLink size={10} />
+                      </a>
                     </div>
                   );
                 })}

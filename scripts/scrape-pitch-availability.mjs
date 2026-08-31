@@ -21,6 +21,11 @@ const FACILITIES = [
   { id: "d3bc83f0-a754-40a9-ba16-d7e31e00252d", pitchSplit: 1 }, // Gresham Sports Park - ATP2 (Quarters)
   { id: "36379e04-3e64-4a9c-b3c5-7b46be11db82", pitchSplit: 1 }, // Gresham Sports Park - ATP1 (Thirds)
   { id: "df95c884-396b-4d02-9719-4afaad1c1563", pitchSplit: 4 }, // Rushcliffe - 3G Floodlit Pitches (Bottom), full pitch
+  { id: "d6df2a13-d8ef-4ee0-8957-0f3de9aefb55", pitchSplit: 1 }, // Gresham Sports Park - Grass Pitch 1 (11v11)
+  { id: "6bd7d271-4164-4ef3-8f0d-7e132307179e", pitchSplit: 1 }, // Gresham Sports Park - Grass Pitch 2 (11v11)
+  { id: "6803fd86-5dd2-4685-aa4e-60ec6da5327f", pitchSplit: 1 }, // Gresham Sports Park - Grass Pitch 3 (11v11)
+  { id: "ce1a82bd-5150-42a9-b670-14e263f0a6bb", pitchSplit: 1 }, // Gresham Sports Park - Grass Pitch 4 (11v11)
+  { id: "97040707-1630-4aba-afb9-3b02d56d3648", pitchSplit: 1 }, // Gresham Sports Park - Grass Pitch 5 (11v11)
 ];
 
 const CLUB_NAME = "West Bridgford Knights F.C.";

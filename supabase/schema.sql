@@ -111,6 +111,12 @@ begin
   end if;
 end $$;
 
+create table if not exists public.pitch_bookings (
+  fixture_id text primary key references public.fixtures(id) on delete cascade,
+  facility_id text not null,
+  confirmed_at timestamptz not null default now()
+);
+
 create table if not exists public.league_table (
   team text primary key,
   pos integer not null,
@@ -130,6 +136,7 @@ alter table public.lineups enable row level security;
 alter table public.results enable row level security;
 alter table public.payments enable row level security;
 alter table public.pitch_availability enable row level security;
+alter table public.pitch_bookings enable row level security;
 alter table public.league_table enable row level security;
 
 drop policy if exists "Public team app can read players" on public.players;
@@ -146,6 +153,8 @@ drop policy if exists "Public team app can read payments" on public.payments;
 drop policy if exists "Public team app can write payments" on public.payments;
 drop policy if exists "Public team app can read pitch_availability" on public.pitch_availability;
 drop policy if exists "Public team app can write pitch_availability" on public.pitch_availability;
+drop policy if exists "Public team app can read pitch_bookings" on public.pitch_bookings;
+drop policy if exists "Public team app can write pitch_bookings" on public.pitch_bookings;
 drop policy if exists "Public team app can read league_table" on public.league_table;
 drop policy if exists "Public team app can write league_table" on public.league_table;
 
@@ -163,5 +172,7 @@ create policy "Public team app can read payments" on public.payments for select 
 create policy "Public team app can write payments" on public.payments for all to anon, authenticated using (true) with check (true);
 create policy "Public team app can read pitch_availability" on public.pitch_availability for select to anon, authenticated using (true);
 create policy "Public team app can write pitch_availability" on public.pitch_availability for all to anon, authenticated using (true) with check (true);
+create policy "Public team app can read pitch_bookings" on public.pitch_bookings for select to anon, authenticated using (true);
+create policy "Public team app can write pitch_bookings" on public.pitch_bookings for all to anon, authenticated using (true) with check (true);
 create policy "Public team app can read league_table" on public.league_table for select to anon, authenticated using (true);
 create policy "Public team app can write league_table" on public.league_table for all to anon, authenticated using (true) with check (true);

@@ -52,7 +52,7 @@ function fixtureFromRow(row) {
 }
 
 export async function loadAppData() {
-  const [players, fixtures, availabilityRows, lineupRows, resultRows, paymentRows, pitchAvailabilityRows, leagueTable] = await Promise.all([
+  const [players, fixtures, availabilityRows, lineupRows, resultRows, paymentRows, pitchAvailabilityRows, pitchBookingRows, leagueTable] = await Promise.all([
     selectAll("players", "number"),
     selectAll("fixtures", "date"),
     selectAll("availability"),
@@ -60,6 +60,7 @@ export async function loadAppData() {
     selectAll("results"),
     selectAll("payments"),
     selectAll("pitch_availability"),
+    selectAll("pitch_bookings"),
     selectAll("league_table", "pos"),
   ]);
 
@@ -84,6 +85,10 @@ export async function loadAppData() {
           [row.slot_start]: { available: row.available, blockReason: row.block_reason, facilityName: row.facility_name, checkedAt: row.checked_at },
         },
       },
+    }), {}),
+    pitchBookings: pitchBookingRows.reduce((all, row) => ({
+      ...all,
+      [row.fixture_id]: row.facility_id,
     }), {}),
     lineups: lineupRows.reduce((all, row) => ({
       ...all,
@@ -119,6 +124,17 @@ export async function saveAvailability(date, playerId, status) {
 
 export async function savePayment(period, playerId, status) {
   await upsertRows("payments", [{ period, player_id: playerId, status }]);
+}
+
+export async function saveConfirmedPitch(fixtureId, facilityId) {
+  const client = requireClient();
+  if (!facilityId) {
+    const { error } = await client.from("pitch_bookings").delete().eq("fixture_id", fixtureId);
+    if (error) throw error;
+    return;
+  }
+  const { error } = await client.from("pitch_bookings").upsert([{ fixture_id: fixtureId, facility_id: facilityId }]);
+  if (error) throw error;
 }
 
 export async function saveLineup(fixtureId, lineup) {
