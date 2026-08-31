@@ -513,21 +513,9 @@ async function downloadAvailabilityPng(fixture, groups, previewWindow) {
   context.font = "bold 21px Arial, sans-serif";
   context.fillText(`${formatFixtureDate(fixture.date)}  |  ${fixture.venue}`, 400, 164);
 
-  context.fillStyle = chalk;
-  context.font = "bold 74px Impact, sans-serif";
-  context.fillText("AVAILABILITY", 400, 250);
-
   context.textAlign = "left";
-  const columnX = [86, 424];
-  const columnWidth = 300;
-  const rowTop = 300;
-  const rowHeight = 260;
-  const rowGap = 24;
 
-  groups.forEach((group, index) => {
-    const x = columnX[index % 2];
-    const y = rowTop + Math.floor(index / 2) * (rowHeight + rowGap);
-
+  function drawGroup(group, x, y, width, height) {
     context.fillStyle = group.color;
     context.font = "bold 22px Arial, sans-serif";
     context.fillText(`${group.label.toUpperCase()} · ${group.players.length}`, x, y);
@@ -535,10 +523,10 @@ async function downloadAvailabilityPng(fixture, groups, previewWindow) {
     context.lineWidth = 2;
     context.beginPath();
     context.moveTo(x, y + 10);
-    context.lineTo(x + columnWidth, y + 10);
+    context.lineTo(x + width, y + 10);
     context.stroke();
 
-    const nameAreaHeight = rowHeight - 44;
+    const nameAreaHeight = height - 44;
     const nameRowHeight = Math.min(26, nameAreaHeight / Math.max(group.players.length, 1));
     const fontSize = Math.max(11, Math.min(18, nameRowHeight - 6));
     context.font = `bold ${fontSize}px Arial, sans-serif`;
@@ -552,6 +540,21 @@ async function downloadAvailabilityPng(fixture, groups, previewWindow) {
         context.fillText(player.name.toUpperCase(), x, y + 44 + i * nameRowHeight);
       });
     }
+  }
+
+  // "Available" runs the full height of the left column; the rest stack on the right.
+  const [leftGroup, ...rightGroups] = groups;
+  const columnWidth = 300;
+  const contentTop = 210;
+  const contentHeight = 650;
+
+  drawGroup(leftGroup, 86, contentTop, columnWidth, contentHeight);
+
+  const rightGap = 24;
+  const rightSectionHeight = (contentHeight - rightGap * (rightGroups.length - 1)) / rightGroups.length;
+  rightGroups.forEach((group, i) => {
+    const y = contentTop + i * (rightSectionHeight + rightGap);
+    drawGroup(group, 424, y, columnWidth, rightSectionHeight);
   });
 
   const logo = new Image();
