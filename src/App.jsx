@@ -2014,7 +2014,7 @@ function ResultsTab({ fixtures, results, players, lineups, resultFixtureId, setR
     <div>
       <SectionHeading eyebrow="Post-match" title="Results & Ratings" />
       <div className="flex flex-col gap-2">
-        {[...fixtures].sort((a,b)=>b.date.localeCompare(a.date)).map(f => {
+        {[...fixtures].sort((a,b)=>a.date.localeCompare(b.date)).map(f => {
           const r = results[f.id];
           return (
             <Panel key={f.id} className="flex items-center justify-between flex-wrap gap-2">
