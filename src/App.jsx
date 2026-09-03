@@ -870,6 +870,25 @@ export default function App() {
     void saveLineup(fixtureId, lineup).catch(reportSaveError);
   }
 
+  function toggleSquadMember(fixtureId, playerId) {
+    const current = lineups[fixtureId] || { starters: {}, subs: [], captain: null, formation: DEFAULT_FORMATION };
+    const currentSquad = effectiveSquadIds(current);
+    const inSquad = currentSquad.includes(playerId);
+    const squad = inSquad ? currentSquad.filter(id => id !== playerId) : [...currentSquad, playerId];
+    let starters = current.starters || {};
+    let subs = current.subs || [];
+    if (inSquad) {
+      // Dropping someone from the squad also clears any pitch slot or bench spot
+      // they held, so the team sheet can't reference a player no longer in it.
+      starters = { ...starters };
+      Object.keys(starters).forEach(k => { if (starters[k] === playerId) delete starters[k]; });
+      subs = subs.filter(id => id !== playerId);
+    }
+    const lineup = { ...current, squad, starters, subs };
+    setLineups(prev => ({ ...prev, [fixtureId]: lineup }));
+    void saveLineup(fixtureId, lineup).catch(reportSaveError);
+  }
+
   function saveResult(fixtureId, ourScore, theirScore, statsDraft) {
     const result = { ourScore, theirScore, stats: statsDraft };
     setResults(prev => ({ ...prev, [fixtureId]: result }));
@@ -1051,7 +1070,8 @@ export default function App() {
               <LineupsTab
                 fixtures={upcoming} players={activePlayers} availability={availability}
                 lineups={lineups} lineupFixtureId={lineupFixtureId} setLineupFixtureId={setLineupFixtureId}
-                assignSlot={assignSlot} toggleSub={toggleSub} selectCaptain={selectCaptain} setFormation={setFormation} role={role}
+                assignSlot={assignSlot} toggleSub={toggleSub} selectCaptain={selectCaptain} setFormation={setFormation}
+                toggleSquadMember={toggleSquadMember} role={role}
               />
             )}
 
@@ -1065,7 +1085,7 @@ export default function App() {
 
             {tab === "results" && (
               <ResultsTab
-                fixtures={fixtures} results={results} players={players}
+                fixtures={fixtures} results={results} players={players} lineups={lineups}
                 resultFixtureId={resultFixtureId} setResultFixtureId={setResultFixtureId}
                 saveResult={saveResult} role={role}
               />
@@ -1513,13 +1533,23 @@ function AvailabilityTab({ fixtures, players, availability, setAvail, role, acti
 }
 
 // ---------- Squads ----------
-function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId, setLineupFixtureId, assignSlot, toggleSub, selectCaptain, setFormation, role }) {
+// The playing squad is an explicit player-id list on the lineup. Older lineups saved before
+// this existed have no `squad` array, so fall back to whoever was already picked as a
+// starter/sub — that way existing matchday selections don't just vanish from view.
+function effectiveSquadIds(lineup) {
+  if (!lineup) return [];
+  if (lineup.squad && lineup.squad.length > 0) return lineup.squad;
+  return [...new Set([...Object.values(lineup.starters || {}), ...(lineup.subs || [])])];
+}
+
+function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId, setLineupFixtureId, assignSlot, toggleSub, selectCaptain, setFormation, toggleSquadMember, role }) {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const fixture = fixtures.find(f => f.id === lineupFixtureId) || fixtures[0];
   const current = fixture ? (lineups[fixture.id] || { starters: {}, subs: [], captain: null, formation: DEFAULT_FORMATION }) : { starters: {}, subs: [], captain: null, formation: DEFAULT_FORMATION };
   const formation = FORMATIONS[current.formation] || FORMATIONS[DEFAULT_FORMATION];
   const fixtureDateKey = fixture ? dateKey(fixture.date) : null;
   const availableIds = fixture ? players.filter(p => availability[fixtureDateKey]?.[p.id] === "yes").map(p => p.id) : [];
+  const squadIds = effectiveSquadIds(current);
   const usedIds = new Set([...Object.values(current.starters), ...current.subs]);
   const availabilityGroups = [
     { key: "yes", label: "Available", color: COLORS.green },
@@ -1532,6 +1562,7 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
   if (!fixture) return <div><SectionHeading eyebrow="Team selection" title="Matchday Squads" /><Panel><div style={{ color: COLORS.chalkDim }}>No upcoming fixture to set a squad for.</div></Panel></div>;
 
   function handlePlayerClick(playerId) {
+    if (!squadIds.includes(playerId)) return;
     const targetSlot = selectedSlot || formation.find(slot => !current.starters[slot.key])?.key;
     if (!targetSlot) return;
     assignSlot(fixture.id, targetSlot, playerId);
@@ -1557,12 +1588,12 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
             </select>
             <button
               type="button"
-              disabled={availableIds.length === 0}
+              disabled={squadIds.length === 0}
               onClick={() => {
                 const previewWindow = window.open("", "_blank");
-                downloadSquadPng(fixture, players.filter(p => availableIds.includes(p.id)), current.captain, previewWindow);
+                downloadSquadPng(fixture, players.filter(p => squadIds.includes(p.id)), current.captain, previewWindow);
               }}
-              style={{ background: COLORS.gold, color: COLORS.bg, opacity: availableIds.length ? 1 : 0.5 }}
+              style={{ background: COLORS.gold, color: COLORS.bg, opacity: squadIds.length ? 1 : 0.5 }}
               className="text-xs font-semibold px-3 py-2 rounded-md flex items-center gap-1.5"
             >
               <Download size={14} /> Create squad PNG
@@ -1582,7 +1613,7 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
         }
       />
       <Panel className="mb-4">
-        <div style={{ color: COLORS.chalkDim }} className="text-sm">Select a pitch position, then click a player name to add them. Without a selected position, players fill the next empty position.</div>
+        <div style={{ color: COLORS.chalkDim }} className="text-sm">First add players to the playing squad below. Then select a pitch position and click a squad player's name to add them — without a selected position, players fill the next empty position.</div>
       </Panel>
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
         <Panel style={{ padding: 0, overflow: "hidden" }}>
@@ -1613,7 +1644,7 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
                     className="text-[10px] rounded-full px-1.5 py-1 w-[64px] text-center appearance-none cursor-pointer"
                   >
                     <option value="">{slot.label}</option>
-                    {players.filter(p => availableIds.includes(p.id) && (!usedIds.has(p.id) || p.id === pid)).map(p => (
+                    {players.filter(p => squadIds.includes(p.id) && (!usedIds.has(p.id) || p.id === pid)).map(p => (
                       <option key={p.id} value={p.id}>{p.number} {p.name.split(" ")[0]}</option>
                     ))}
                   </select>
@@ -1623,28 +1654,47 @@ function LineupsTab({ fixtures, players, availability, lineups, lineupFixtureId,
           </div>
         </Panel>
         <Panel>
-          <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-3">Available squad · yes only · {availableIds.length}</div>
+          <div style={{ color: COLORS.chalkDim }} className="text-xs uppercase tracking-wider mb-3">Playing squad · {squadIds.length} of {availableIds.length} available</div>
           <div className="flex flex-col gap-1 max-h-[420px] overflow-y-auto pr-1">
             {players.filter(p => availableIds.includes(p.id)).map(p => {
+              const inSquad = squadIds.includes(p.id);
               const inSub = current.subs.includes(p.id);
               const inStart = Object.values(current.starters).includes(p.id);
               return (
                 <div key={p.id} className="flex items-center justify-between text-sm py-1.5" style={{ borderTop: `1px solid ${COLORS.line}` }}>
-                  <button type="button" onClick={() => handlePlayerClick(p.id)} className="flex items-center gap-2 text-left hover:text-[#E9E4D4]">
+                  <button type="button" disabled={!inSquad} onClick={() => handlePlayerClick(p.id)}
+                    style={{ opacity: inSquad ? 1 : 0.5 }}
+                    className="flex items-center gap-2 text-left hover:text-[#E9E4D4]">
                     <ShirtBadge number={p.number} size={24} /> {p.name}
                   </button>
                   <div className="flex items-center gap-1.5">
-                    {inStart ? <Badge color={COLORS.gold}>Starting</Badge> :
-                    <button disabled={role !== "manager"} onClick={() => toggleSub(fixture.id, p.id)}
-                      style={{ background: inSub ? COLORS.sky+"33" : "transparent", border: `1px solid ${inSub ? COLORS.sky : COLORS.line}`, color: inSub ? COLORS.sky : COLORS.chalkDim }}
-                      className="text-[11px] px-2 py-1 rounded-md">
-                      {inSub ? "On bench" : "Add to bench"}
-                    </button>}
-                    <button type="button" onClick={() => selectCaptain(fixture.id, p.id)}
-                      style={{ color: current.captain === p.id ? COLORS.gold : COLORS.chalkDim, border: `1px solid ${current.captain === p.id ? COLORS.gold : COLORS.line}` }}
-                      className="text-[10px] px-1.5 py-1 rounded-md">
-                      {current.captain === p.id ? "Captain" : "C"}
-                    </button>
+                    {!inSquad ? (
+                      <button type="button" disabled={role !== "manager"} onClick={() => toggleSquadMember(fixture.id, p.id)}
+                        style={{ color: COLORS.sky, border: `1px solid ${COLORS.sky}` }}
+                        className="text-[11px] px-2 py-1 rounded-md">
+                        Add to squad
+                      </button>
+                    ) : (
+                      <>
+                        {inStart ? <Badge color={COLORS.gold}>Starting</Badge> :
+                        <button disabled={role !== "manager"} onClick={() => toggleSub(fixture.id, p.id)}
+                          style={{ background: inSub ? COLORS.sky+"33" : "transparent", border: `1px solid ${inSub ? COLORS.sky : COLORS.line}`, color: inSub ? COLORS.sky : COLORS.chalkDim }}
+                          className="text-[11px] px-2 py-1 rounded-md">
+                          {inSub ? "On bench" : "Add to bench"}
+                        </button>}
+                        <button type="button" onClick={() => selectCaptain(fixture.id, p.id)}
+                          style={{ color: current.captain === p.id ? COLORS.gold : COLORS.chalkDim, border: `1px solid ${current.captain === p.id ? COLORS.gold : COLORS.line}` }}
+                          className="text-[10px] px-1.5 py-1 rounded-md">
+                          {current.captain === p.id ? "Captain" : "C"}
+                        </button>
+                        <button type="button" disabled={role !== "manager"} onClick={() => toggleSquadMember(fixture.id, p.id)}
+                          title="Remove from squad"
+                          style={{ color: COLORS.clay, border: `1px solid ${COLORS.clay}66` }}
+                          className="text-[10px] px-1.5 py-1 rounded-md">
+                          ✕
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               );
@@ -1887,16 +1937,25 @@ function PitchAvailabilityTab({ fixtures, pitchAvailability, pitchBookings, setC
 }
 
 // ---------- Results ----------
-function ResultsTab({ fixtures, results, players, resultFixtureId, setResultFixtureId, saveResult, role }) {
+function ResultsTab({ fixtures, results, players, lineups, resultFixtureId, setResultFixtureId, saveResult, role }) {
   const editing = fixtures.find(f => f.id === resultFixtureId);
   const [draft, setDraft] = useState(null);
 
   function startEdit(f) {
     const existing = results[f.id];
+    // Rate only the playing squad for this fixture — falling back to the full roster for
+    // older/friendly fixtures that never had a squad picked, and always keeping anyone who
+    // already has stats recorded even if they've since dropped out of the squad.
+    const squadIds = effectiveSquadIds(lineups[f.id]);
+    const rosterIds = squadIds.length > 0
+      ? [...new Set([...squadIds, ...Object.keys(existing?.stats || {})])]
+      : players.map(p => p.id);
+    const roster = players.filter(p => rosterIds.includes(p.id)).sort((a, b) => a.number - b.number);
     setDraft({
       ourScore: existing?.ourScore ?? 0,
       theirScore: existing?.theirScore ?? 0,
-      stats: existing?.stats ?? Object.fromEntries(players.map(p => [p.id, { min: 0, g: 0, a: 0, r: 0 }])),
+      stats: existing?.stats ?? Object.fromEntries(roster.map(p => [p.id, { min: 0, g: 0, a: 0, r: 0 }])),
+      roster,
     });
     setResultFixtureId(f.id);
   }
@@ -1923,9 +1982,9 @@ function ResultsTab({ fixtures, results, players, resultFixtureId, setResultFixt
                 </tr>
               </thead>
               <tbody>
-                {players.map(p => {
-                  const s = draft.stats[p.id];
-                  const upd = (field, val) => setDraft(d => ({ ...d, stats: { ...d.stats, [p.id]: { ...d.stats[p.id], [field]: val } } }));
+                {draft.roster.map(p => {
+                  const s = draft.stats[p.id] || { min: 0, g: 0, a: 0, r: 0 };
+                  const upd = (field, val) => setDraft(d => ({ ...d, stats: { ...d.stats, [p.id]: { ...(d.stats[p.id] || { min: 0, g: 0, a: 0, r: 0 }), [field]: val } } }));
                   return (
                     <tr key={p.id} style={{ borderBottom: `1px solid ${COLORS.line}` }}>
                       <td className="py-2 px-3 flex items-center gap-2"><ShirtBadge number={p.number} size={22}/> {p.name}</td>

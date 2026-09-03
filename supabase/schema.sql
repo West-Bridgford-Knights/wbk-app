@@ -60,11 +60,13 @@ create table if not exists public.lineups (
   starters jsonb not null default '{}'::jsonb,
   subs jsonb not null default '[]'::jsonb,
   captain_id text references public.players(id) on delete set null,
-  formation text not null default '4-3-3'
+  formation text not null default '4-3-3',
+  squad jsonb not null default '[]'::jsonb
 );
 
 alter table public.lineups add column if not exists captain_id text references public.players(id) on delete set null;
 alter table public.lineups add column if not exists formation text not null default '4-3-3';
+alter table public.lineups add column if not exists squad jsonb not null default '[]'::jsonb;
 
 create table if not exists public.results (
   fixture_id text primary key references public.fixtures(id) on delete cascade,
