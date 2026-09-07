@@ -10,7 +10,8 @@
     "scrape:league": "node --env-file=.env scripts/scrape-league-table.mjs",
     "scrape:fixtures": "node --env-file=.env scripts/scrape-fixtures.mjs",
     "scrape:pitch-availability": "node --env-file=.env scripts/scrape-pitch-availability.mjs",
-    "generate:ics": "node --env-file=.env scripts/generate-fixtures-ics.mjs"
+    "generate:ics": "node --env-file=.env scripts/generate-fixtures-ics.mjs",
+    "scrape:all": "npm run scrape:league && npm run scrape:fixtures && npm run scrape:pitch-availability && npm run generate:ics"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
