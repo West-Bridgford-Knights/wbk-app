@@ -164,3 +164,13 @@ export async function saveResult(fixtureId, result) {
     .eq("id", fixtureId);
   if (fixtureError) throw fixtureError;
 }
+
+export async function saveFixtureStatus(fixtureId, status) {
+  const { error } = await requireClient().from("fixtures").update({ status }).eq("id", fixtureId);
+  if (error) throw error;
+}
+
+export async function deleteResult(fixtureId) {
+  const { error } = await requireClient().from("results").delete().eq("fixture_id", fixtureId);
+  if (error) throw error;
+}

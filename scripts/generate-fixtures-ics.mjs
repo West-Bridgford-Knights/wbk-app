@@ -80,8 +80,10 @@ function buildEvent(fixture) {
   // so the Knights are the away side exactly when the away slot holds the opponent.
   const isHome = fixture.away_team === fixture.opponent;
   const venueLabel = isHome ? "(H)" : "(A)";
-  const summary = `WBK ${venueLabel} vs ${fixture.opponent}`;
-  const descriptionParts = [fixture.competition, fixture.status === "played" ? "Result logged" : "Upcoming"].filter(
+  const postponed = fixture.status === "postponed";
+  const summary = `${postponed ? "POSTPONED: " : ""}WBK ${venueLabel} vs ${fixture.opponent}`;
+  const statusLabel = postponed ? "Postponed" : fixture.status === "played" ? "Result logged" : "Upcoming";
+  const descriptionParts = [fixture.competition, statusLabel].filter(
     Boolean
   );
 
@@ -94,6 +96,8 @@ function buildEvent(fixture) {
     `SUMMARY:${escapeIcsText(summary)}`,
     `DESCRIPTION:${escapeIcsText(descriptionParts.join(" — "))}`,
   ];
+  // STATUS:CANCELLED makes subscribed calendars strike through / drop the event.
+  if (postponed) lines.push("STATUS:CANCELLED");
   if (fixture.venue) lines.push(`LOCATION:${escapeIcsText(fixture.venue)}`);
   lines.push("END:VEVENT");
   return lines;

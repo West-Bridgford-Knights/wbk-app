@@ -19,26 +19,44 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   process.exit(1);
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function fetchFixturesHtml() {
   // FA Full-Time sits behind Cloudflare, which blocks Node's fetch() (undici) on
   // TLS/HTTP client fingerprint alone — a plain curl request with the same headers
   // passes, so shell out to curl rather than using fetch().
-  const { stdout } = await execFileAsync(
-    "curl",
-    [
-      "--silent",
-      "--show-error",
-      "--fail",
-      "--location",
-      "--user-agent",
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "--header",
-      "Accept-Language: en-GB,en;q=0.9",
-      FIXTURES_URL,
-    ],
-    { maxBuffer: 20 * 1024 * 1024 }
-  );
-  return stdout;
+  //
+  // Unlike the league table page (which Cloudflare now hard-blocks with an explicit
+  // browser challenge on every request, see scrape-league-table.mjs), this page only
+  // gets challenged intermittently — a request that gets a 403 here often succeeds a
+  // few seconds later — so retry a handful of times before giving up.
+  const attempts = 5;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const { stdout } = await execFileAsync(
+        "curl",
+        [
+          "--silent",
+          "--show-error",
+          "--fail",
+          "--location",
+          "--user-agent",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "--header",
+          "Accept-Language: en-GB,en;q=0.9",
+          FIXTURES_URL,
+        ],
+        { maxBuffer: 20 * 1024 * 1024 }
+      );
+      return stdout;
+    } catch (error) {
+      if (attempt === attempts) throw error;
+      console.log(`Fetch attempt ${attempt} failed (likely a transient Cloudflare challenge), retrying...`);
+      await sleep(4000);
+    }
+  }
 }
 
 function toIsoDate(text) {
@@ -127,6 +145,9 @@ async function main() {
   const { data: leagueRows, error: leagueError } = await supabase.from("league_table").select("team,pos");
   if (leagueError) throw leagueError;
 
+  const { data: existingRows, error: existingError } = await supabase.from("fixtures").select("id,date,status");
+  if (existingError) throw existingError;
+
   const scrapedAt = new Date().toISOString();
   const rows = attachOppPos(parsed, leagueRows || []).map((row) => ({ ...row, scraped_at: scrapedAt }));
 
@@ -136,6 +157,19 @@ async function main() {
   // stamped explicitly on every row since upsert leaves a plain default column untouched on update.
   const { error: upsertError } = await supabase.from("fixtures").upsert(rows);
   if (upsertError) throw upsertError;
+
+  // A postponed fixture that FA has since given a new date is back on — flip it to upcoming.
+  // - Done as a separate update, not in the upsert: supabase-js bulk upsert nulls columns
+  //   missing from some rows, which would wipe status on every other fixture.
+  const rescheduled = (existingRows || [])
+    .filter((e) => e.status === "postponed")
+    .filter((e) => rows.some((r) => r.id === e.id && r.date !== e.date))
+    .map((e) => e.id);
+  if (rescheduled.length) {
+    const { error: statusError } = await supabase.from("fixtures").update({ status: "upcoming" }).in("id", rescheduled);
+    if (statusError) throw statusError;
+    console.log(`Reinstated ${rescheduled.length} rescheduled postponed fixture(s).`);
+  }
 
   console.log(`Scraped and upserted ${rows.length} fixtures.`);
 }
